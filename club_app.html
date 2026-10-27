@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Клуб: таблицы</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#1b150f;--card:#2a2118;--line:#4a3b28;--gold:#c9a25a;--text:#f3ead9;--muted:#a89a80;--today:#3a2d1c}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:0 0 80px;min-height:100vh}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:18px;color:var(--gold)}
+#refresh{background:none;border:1px solid var(--line);color:var(--gold);border-radius:6px;padding:6px 10px;cursor:pointer}
+#status{font-size:12px;color:var(--muted);padding:6px 16px}
+main{padding:8px 12px;max-width:900px;margin:0 auto}
+section{display:none}
+section.active{display:block}
+h2{color:var(--gold);font-size:18px;margin:10px 0}
+.note{color:var(--muted);font-style:italic;font-size:14px;margin:6px 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.rule{margin-bottom:14px;line-height:1.55;font-size:15px}
+.rule b{color:var(--gold)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--gold);font-weight:600}
+tr.today td{background:var(--today)}
+tr.today td:first-child{border-left:3px solid var(--gold)}
+td.num,th.num{text-align:right}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kv div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.kv span{display:block;color:var(--muted);font-size:13px;margin-bottom:4px}
+.kv b{font-size:22px;color:var(--gold)}
+button.sort{background:var(--card);color:var(--gold);border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin-bottom:8px;cursor:pointer}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#120e09;border-top:1px solid var(--line)}
+nav button{flex:1;padding:14px 4px;background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer}
+nav button.active{color:var(--gold);font-weight:700}
+.err{color:#e07a5f}
+.wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>Клуб</h1>
+  <button id="refresh" onclick="loadAll()">⟳ Обновить</button>
+</header>
+<div id="status">Загрузка...</div>
+
+<main>
+  <section id="rules"></section>
+  <section id="schedule"></section>
+  <section id="pilots"></section>
+  <section id="summary"></section>
+</main>
+
+<nav>
+  <button data-t="rules" class="active" onclick="show('rules')">Правила</button>
+  <button data-t="schedule" onclick="show('schedule')">Расписание</button>
+  <button data-t="pilots" onclick="show('pilots')">Пилоты</button>
+  <button data-t="summary" onclick="show('summary')">Сводка</button>
+</nav>
+
+<script>
+// Telegram: сообщаем, что приложение готово (в обычном браузере просто ничего не происходит)
+if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.ready(); window.Telegram.WebApp.expand(); }
+
+// Ссылки на опубликованные листы таблицы (gid каждой вкладки)
+const BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4hL-1v8UUlMxTynXm6gtaCK0KLgjAtxmxONulVDd0HWh4khlTbzaYICkV8xr_3w/pub?single=true&output=csv&gid=';
+const SHEETS = { rules: '132127449', schedule: '900781415', pilots: '1543070136', summary: '1464761771' };
+const DAYS = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+
+let data = null;
+let pilotSort = 'num';
+
+// Разбор CSV: поддерживает кавычки и переносы строк внутри ячеек
+function parseCSV(text) {
+  const rows = []; let row = [], field = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else quoted = false; }
+      else field += c;
+    } else {
+      if (c === '"') quoted = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c !== '\r') field += c;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.map(r => r.map(x => x.trim())).filter(r => r.some(x => x !== ''));
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+const cells = r => r.filter(x => x !== '');
+const num = x => parseFloat(String(x || '0').replace(',', '.')) || 0;
+
+async function loadAll() {
+  document.getElementById('status').textContent = 'Загрузка...';
+  try {
+    const entries = await Promise.all(Object.entries(SHEETS).map(async ([key, gid]) => {
+      const r = await fetch(BASE + gid, { cache: 'no-store' });
+      if (!r.ok) throw new Error(key);
+      return [key, parseCSV(await r.text())];
+    }));
+    data = Object.fromEntries(entries);
+    renderAll();
+    const t = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('status').textContent = 'Обновлено в ' + t;
+  } catch (e) {
+    document.getElementById('status').innerHTML = '<span class="err">Не удалось загрузить таблицу. Проверь, что она опубликована в интернете.</span>';
+  }
+}
+
+function renderAll() {
+  renderRules();
+  renderSchedule();
+  renderPilots();
+  renderSummary();
+}
+
+function renderRules() {
+  const html = data.rules.flat().filter(Boolean).map(cell =>
+    cell.split('\n').map(line => {
+      const t = esc(line);
+      return /^(Правило|Регламент|Ливреист|SMM|Судейство|Бухгалтер)/.test(line) ? `<b>${t}</b>` : t;
+    }).join('<br>')
+  ).map(p => `<div class="rule">${p}</div>`).join('');
+  document.getElementById('rules').innerHTML = html;
+}
+
+function renderSchedule() {
+  const todayName = DAYS[(new Date().getDay() + 6) % 7];
+  let rows = '', hint = '', note = '';
+  for (const r of data.schedule) {
+    const day = (r[0] || '').trim();
+    if (day === 'Подсказка') { hint = r[1] || ''; continue; }
+    if (day.startsWith('↓')) { note = day; continue; }
+    if (!DAYS.some(d => d.toLowerCase() === day.toLowerCase())) continue;
+    const isToday = day.toLowerCase() === todayName.toLowerCase();
+    rows += `<tr class="${isToday ? 'today' : ''}"><td>${esc(day)}${isToday ? ' ←' : ''}</td><td>${esc(r[2] || '—')}</td><td>${esc(r[3] || '')}</td></tr>`;
+  }
+  document.getElementById('schedule').innerHTML =
+    `<h2>Расписание недели</h2>
+     ${note ? `<p class="note">${esc(note)}</p>` : ''}
+     <div class="card wrap"><table>
+       <thead><tr><th>День</th><th>План / задача</th><th>Примечания</th></tr></thead>
+       <tbody>${rows}</tbody>
+     </table></div>
+     ${hint ? `<p class="note">${esc(hint)}</p>` : ''}`;
+}
+
+function renderPilots() {
+  const pilots = data.pilots.filter(r => /^\d+$/.test(r[0] || ''));
+  const taglines = data.pilots.filter(r => cells(r).length === 1 && r[0] && !/^\d/.test(r[0]) && r[0] !== 'ИТОГО').map(r => r[0]);
+  const list = [...pilots];
+  if (pilotSort === 'points') list.sort((a, b) => num(b[5]) - num(a[5]));
+  const body = list.map(r => `<tr>
+      <td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>
+      <td class="num">${esc(r[3] || 0)}</td><td class="num">${esc(r[4] || 0)}</td>
+      <td class="num"><b>${esc(r[5] || 0)}</b></td><td>${esc(r[6] || '—')}</td></tr>`).join('');
+  document.getElementById('pilots').innerHTML =
+    `<h2>Статистика пилотов</h2>
+     ${taglines.map(t => `<p class="note">${esc(t)}</p>`).join('')}
+     <button class="sort" onclick="togglePilotSort()">Сортировка: ${pilotSort === 'num' ? 'по номеру (нажми для баллов)' : 'по баллам (нажми для номеров)'}</button>
+     <div class="card wrap"><table>
+       <thead><tr><th>№</th><th>Имя</th><th>Телеграм</th><th class="num">Заездов</th><th class="num">Побед</th><th class="num">Баллы</th><th>Роль</th></tr></thead>
+       <tbody>${body}</tbody>
+     </table></div>`;
+}
+
+function togglePilotSort() {
+  pilotSort = pilotSort === 'num' ? 'points' : 'num';
+  renderPilots();
+}
+
+function renderSummary() {
+  const rows = data.summary.filter(r => r[0] && r[1] && r[0] !== 'Показатель' && r[0] !== 'Примечание');
+  const note = data.summary.find(r => cells(r).length === 1 && r[0].length > 40);
+  document.getElementById('summary').innerHTML =
+    `<h2>Сводка по пилотам</h2>
+     <div class="kv">${rows.map(r => `<div><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div>
+     ${note ? `<p class="note">${esc(note[0])}</p>` : ''}`;
+}
+
+function show(name) {
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('active', s.id === name));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.t === name));
+}
+
+show('rules');
+loadAll();
+</script>
+</body>
+</html>
