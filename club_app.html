@@ -66,6 +66,17 @@ nav button.active{color:var(--gold);font-weight:700}
 // Telegram: сообщаем, что приложение готово (в обычном браузере просто ничего не происходит)
 if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.ready(); window.Telegram.WebApp.expand(); }
 
+// Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
+// перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
+const APP_VERSION = '2026-11-10a';
+fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
+  .then(r => r.text())
+  .then(t => {
+    const m = t.match(/APP_VERSION = '([^']+)'/);
+    if (m && m[1] !== APP_VERSION) location.replace(location.pathname + '?v=' + m[1] + location.hash);
+  })
+  .catch(() => {});
+
 // Ссылки на опубликованные листы таблицы (gid каждой вкладки)
 const BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4hL-1v8UUlMxTynXm6gtaCK0KLgjAtxmxONulVDd0HWh4khlTbzaYICkV8xr_3w/pub?single=true&output=csv&gid=';
 const SHEETS = { rules: '132127449', schedule: '900781415', pilots: '1543070136', summary: '1464761771' };
@@ -111,7 +122,7 @@ async function loadAll() {
     data = Object.fromEntries(entries);
     renderAll();
     const t = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    document.getElementById('status').textContent = 'Обновлено в ' + t;
+    document.getElementById('status').textContent = 'Обновлено в ' + t + (myUsername ? ' · ты @' + myUsername : '');
   } catch (e) {
     document.getElementById('status').innerHTML = '<span class="err">Не удалось загрузить таблицу. Проверь, что она опубликована в интернете.</span>';
   }
