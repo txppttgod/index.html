@@ -119,11 +119,21 @@ function renderAll() {
   renderSummary();
 }
 
+// Какие строки правил выделять золотым. Не по списку слов, а по виду строки,
+// чтобы новые правила и должности из таблицы оформлялись сами, без правки кода.
+function isRuleHeading(line) {
+  const s = line.trim();
+  return /^(Правило\s*\d+|Регламент)/i.test(s)                       // «Правило 7. …», «Регламент»
+    || /^[^—–()]{1,40}\([^)]*\)\s*[—–]\s/.test(s)                     // «Настройщик (механик, …) — …»
+    || /^[A-Za-zА-Яа-яЁё-]+(\s[A-Za-zА-Яа-яЁё-]+)?\s[—–]\s/.test(s)   // «Тренер — …», «Дизайнер ливрей — …»
+    || (s.length < 60 && /[А-ЯЁA-Z]/.test(s) && s === s.toUpperCase()); // «ПРАВИЛА И ТРЕБОВАНИЯ»
+}
+
 function renderRules() {
   const html = data.rules.flat().filter(Boolean).map(cell =>
     cell.split('\n').map(line => {
       const t = esc(line);
-      return /^(Правило|Регламент|Ливреист|SMM|Судейство|Бухгалтер)/.test(line) ? `<b>${t}</b>` : t;
+      return isRuleHeading(line) ? `<b>${t}</b>` : t;
     }).join('<br>')
   ).map(p => `<div class="rule">${p}</div>`).join('');
   document.getElementById('rules').innerHTML = html;
