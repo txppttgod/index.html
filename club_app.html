@@ -164,7 +164,9 @@ function renderPilots() {
   const pilots = data.pilots.filter(r => /^\d+$/.test(r[0] || ''));
   const taglines = data.pilots.filter(r => cells(r).length === 1 && r[0] && !/^\d/.test(r[0]) && r[0] !== 'ИТОГО').map(r => r[0]);
   const list = [...pilots];
-  if (pilotSort === 'points') list.sort((a, b) => num(b[5]) - num(a[5]));
+  // При равных баллах решают победы, потом сданные заезды, потом номер — иначе при нулях порядок не меняется
+  if (pilotSort === 'points') list.sort((a, b) => num(b[5]) - num(a[5]) || num(b[4]) - num(a[4]) || num(b[3]) - num(a[3]) || num(a[0]) - num(b[0]));
+  else list.sort((a, b) => num(a[0]) - num(b[0]));
   const body = list.map(r => `<tr>
       <td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>
       <td class="num">${esc(r[3] || 0)}</td><td class="num">${esc(r[4] || 0)}</td>
