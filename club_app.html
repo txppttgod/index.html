@@ -26,6 +26,8 @@ th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertic
 th{color:var(--gold);font-weight:600}
 tr.today td{background:var(--today)}
 tr.today td:first-child{border-left:3px solid var(--gold)}
+tr.me td{background:var(--today);color:var(--gold);font-weight:600}
+tr.me td:first-child{border-left:3px solid var(--gold)}
 td.num,th.num{text-align:right}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .kv div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
@@ -71,6 +73,9 @@ const DAYS = ['Понедельник', 'Вторник', 'Среда', 'Чет�
 
 let data = null;
 let pilotSort = 'num';
+// Ник того, кто открыл приложение в Телеграме (в обычном браузере его нет) — для подсветки своей строки
+const myUsername = ((window.Telegram && Telegram.WebApp.initDataUnsafe.user || {}).username || '').toLowerCase();
+const isMe = tg => myUsername !== '' && String(tg || '').trim().replace(/^@/, '').toLowerCase() === myUsername;
 
 // Разбор CSV: поддерживает кавычки и переносы строк внутри ячеек
 function parseCSV(text) {
@@ -167,8 +172,8 @@ function renderPilots() {
   // При равных баллах решают победы, потом сданные заезды, потом номер — иначе при нулях порядок не меняется
   if (pilotSort === 'points') list.sort((a, b) => num(b[5]) - num(a[5]) || num(b[4]) - num(a[4]) || num(b[3]) - num(a[3]) || num(a[0]) - num(b[0]));
   else list.sort((a, b) => num(a[0]) - num(b[0]));
-  const body = list.map(r => `<tr>
-      <td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>
+  const body = list.map(r => `<tr class="${isMe(r[2]) ? 'me' : ''}">
+      <td>${esc(r[0])}</td><td>${esc(r[1])}${isMe(r[2]) ? ' ← ты' : ''}</td><td>${esc(r[2])}</td>
       <td class="num">${esc(r[3] || 0)}</td><td class="num">${esc(r[4] || 0)}</td>
       <td class="num"><b>${esc(r[5] || 0)}</b></td><td>${esc(r[6] || '—')}</td></tr>`).join('');
   document.getElementById('pilots').innerHTML =
