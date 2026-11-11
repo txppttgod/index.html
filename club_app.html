@@ -68,7 +68,7 @@ if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.ready();
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-10a';
+const APP_VERSION = '2026-11-11a';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -113,6 +113,7 @@ const num = x => parseFloat(String(x || '0').replace(',', '.')) || 0;
 
 async function loadAll() {
   document.getElementById('status').textContent = 'Загрузка...';
+  loadDuels();  // параллельно с таблицей: бот может отвечать дольше
   try {
     const entries = await Promise.all(Object.entries(SHEETS).map(async ([key, gid]) => {
       const r = await fetch(BASE + gid, { cache: 'no-store' });
@@ -176,29 +177,56 @@ function renderSchedule() {
      ${hint ? `<p class="note">${esc(hint)}</p>` : ''}`;
 }
 
+// Дуэли считает бот по скринам из темы «отчёты по дуэлям» и отдаёт их по ссылке /duels.
+// Бесплатный Render засыпает, поэтому первый ответ может идти до минуты — таблицу показываем сразу, дуэли дорисуем.
+const BOT_URL = 'https://khr-bot.onrender.com';
+let duelData = null;
+async function loadDuels() {
+  duelData = null;
+  try {
+    const r = await fetch(BOT_URL + '/duels?t=' + Date.now(), { cache: 'no-store' });
+    duelData = await r.json();
+    if (!duelData.pilots) duelData = { error: true };
+  } catch (e) { duelData = { error: true }; }
+  if (data) renderPilots();
+}
+
 function renderPilots() {
+  // Колонки ищем по заголовкам таблицы, а не по номерам: так удалённые в таблице колонки пропадут и тут
+  const head = (data.pilots.find(r => r[0] === '№') || []).map(h => h.toLowerCase());
+  const iRole = head.findIndex(h => h.startsWith('роль'));
   const pilots = data.pilots.filter(r => /^\d+$/.test(r[0] || ''));
   const taglines = data.pilots.filter(r => cells(r).length === 1 && r[0] && !/^\d/.test(r[0]) && r[0] !== 'ИТОГО').map(r => r[0]);
+  const ready = duelData && !duelData.error;
+  const norm = ready ? duelData.norm : 20;
+  const duel = r => (ready && duelData.pilots[String(r[2] || '').trim().replace(/^@/, '').toLowerCase()]) || { week: 0, prev: 0 };
   const list = [...pilots];
-  // При равных баллах решают победы, потом сданные заезды, потом номер — иначе при нулях порядок не меняется
-  if (pilotSort === 'points') list.sort((a, b) => num(b[5]) - num(a[5]) || num(b[4]) - num(a[4]) || num(b[3]) - num(a[3]) || num(a[0]) - num(b[0]));
+  if (pilotSort === 'duels') list.sort((a, b) => duel(b).week - duel(a).week || duel(b).prev - duel(a).prev || num(a[0]) - num(b[0]));
   else list.sort((a, b) => num(a[0]) - num(b[0]));
-  const body = list.map(r => `<tr class="${isMe(r[2]) ? 'me' : ''}">
+  const cell = v => ready ? v : (duelData ? '?' : '…');
+  const body = list.map(r => {
+    const d = duel(r);
+    return `<tr class="${isMe(r[2]) ? 'me' : ''}">
       <td>${esc(r[0])}</td><td>${esc(r[1])}${isMe(r[2]) ? ' ← ты' : ''}</td><td>${esc(r[2])}</td>
-      <td class="num">${esc(r[3] || 0)}</td><td class="num">${esc(r[4] || 0)}</td>
-      <td class="num"><b>${esc(r[5] || 0)}</b></td><td>${esc(r[6] || '—')}</td></tr>`).join('');
+      <td class="num"><b>${cell(d.week + '/' + norm)}</b>${ready && d.week >= norm ? ' ✅' : ''}</td>
+      <td class="num">${cell(d.prev)}</td><td>${esc((iRole >= 0 ? r[iRole] : r[r.length - 1]) || '—')}</td></tr>`;
+  }).join('');
+  const info = ready ? `Дуэли за неделю ${esc(duelData.week)}, норма ${norm}. Считает бот по скринам из темы «отчёты по дуэлям».`
+    : duelData ? 'Не удалось получить дуэли от бота. Нажми «Обновить» через минуту.'
+    : 'Загружаю дуэли от бота… Если бот спал, это займёт до минуты.';
   document.getElementById('pilots').innerHTML =
     `<h2>Статистика пилотов</h2>
      ${taglines.map(t => `<p class="note">${esc(t)}</p>`).join('')}
-     <button class="sort" onclick="togglePilotSort()">Сортировка: ${pilotSort === 'num' ? 'по номеру (нажми для баллов)' : 'по баллам (нажми для номеров)'}</button>
+     <p class="note">${info}</p>
+     <button class="sort" onclick="togglePilotSort()">Сортировка: ${pilotSort === 'num' ? 'по номеру (нажми для дуэлей)' : 'по дуэлям (нажми для номеров)'}</button>
      <div class="card wrap"><table>
-       <thead><tr><th>№</th><th>Имя</th><th>Телеграм</th><th class="num">Заездов</th><th class="num">Побед</th><th class="num">Баллы</th><th>Роль</th></tr></thead>
+       <thead><tr><th>№</th><th>Имя</th><th>Телеграм</th><th class="num">Дуэли</th><th class="num">Прошлая неделя</th><th>Роль</th></tr></thead>
        <tbody>${body}</tbody>
      </table></div>`;
 }
 
 function togglePilotSort() {
-  pilotSort = pilotSort === 'num' ? 'points' : 'num';
+  pilotSort = pilotSort === 'num' ? 'duels' : 'num';
   renderPilots();
 }
 
