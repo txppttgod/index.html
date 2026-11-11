@@ -2,73 +2,153 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Клуб: таблицы</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Khinkali Racing Club</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#1b150f;--card:#2a2118;--line:#4a3b28;--gold:#c9a25a;--text:#f3ead9;--muted:#a89a80;--today:#3a2d1c}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:0 0 80px;min-height:100vh}
-header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
-header h1{margin:0;font-size:18px;color:var(--gold)}
-#refresh{background:none;border:1px solid var(--line);color:var(--gold);border-radius:6px;padding:6px 10px;cursor:pointer}
-#status{font-size:12px;color:var(--muted);padding:6px 16px}
-main{padding:8px 12px;max-width:900px;margin:0 auto}
+:root{--bg:#0f0f12;--card:#18181d;--card2:#202027;--line:#2b2b33;--accent:#ff4d2e;--accent-soft:#3a1a14;--gold:#f2b84b;--gold-soft:#3a2e14;
+  --ok:#3ecf8e;--ok-soft:#123326;--text:#f1f1f3;--muted:#9a9aa6;--race:"Russo One",system-ui,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);
+  padding:0 0 calc(76px + env(safe-area-inset-bottom));min-height:100vh;font-size:15px}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(15,15,18,.94);
+  border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+.logo{width:40px;height:40px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+  font-family:var(--race);font-size:14px;letter-spacing:.5px;flex:none;transform:skewX(-8deg)}
+.logo span{transform:skewX(8deg)}
+.title{flex:1;min-width:0}
+.title h1{margin:0;font-family:var(--race);font-weight:400;font-size:17px;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#status{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.iconbtn svg{width:20px;height:20px}
+.stripe{height:4px;background:repeating-linear-gradient(-45deg,var(--accent) 0 10px,transparent 10px 20px);opacity:.85}
+main{padding:12px 14px;max-width:720px;margin:0 auto}
 section{display:none}
-section.active{display:block}
-h2{color:var(--gold);font-size:18px;margin:10px 0}
-.note{color:var(--muted);font-style:italic;font-size:14px;margin:6px 0 12px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
-.rule{margin-bottom:14px;line-height:1.55;font-size:15px}
-.rule b{color:var(--gold)}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{color:var(--gold);font-weight:600}
-tr.today td{background:var(--today)}
-tr.today td:first-child{border-left:3px solid var(--gold)}
-tr.me td{background:var(--today);color:var(--gold);font-weight:600}
-tr.me td:first-child{border-left:3px solid var(--gold)}
-td.num,th.num{text-align:right}
-.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.kv div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
-.kv span{display:block;color:var(--muted);font-size:13px;margin-bottom:4px}
-.kv b{font-size:22px;color:var(--gold)}
-button.sort{background:var(--card);color:var(--gold);border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin-bottom:8px;cursor:pointer}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#120e09;border-top:1px solid var(--line)}
-nav button{flex:1;padding:14px 4px;background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer}
-nav button.active{color:var(--gold);font-weight:700}
-.err{color:#e07a5f}
-.wrap{overflow-x:auto}
+section.active{display:block;animation:fade .2s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;letter-spacing:.3px}
+.label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 8px}
+.note{color:var(--muted);font-size:13px;line-height:1.5;margin:6px 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.err{color:var(--accent)}
+/* своя карточка */
+.me{position:relative;overflow:hidden;border-color:#4a2a22;background:linear-gradient(135deg,#24161a 0%,var(--card) 60%)}
+.me-top{display:flex;align-items:center;gap:12px}
+.me-num{font-family:var(--race);font-size:13px;color:var(--muted)}
+.me-big{font-family:var(--race);font-size:34px;line-height:1.1;margin:10px 0 2px}
+.me-big small{font-family:system-ui,sans-serif;font-size:14px;color:var(--muted)}
+.bar{height:8px;border-radius:6px;background:var(--card2);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;border-radius:6px;background:var(--accent);transition:width .6s ease}
+.bar.done i{background:var(--ok)}
+.bar.thin{height:4px;margin-top:6px}
+/* подиум */
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end}
+.pod{text-align:center;cursor:pointer}
+.pod .av{margin:0 auto 6px}
+.pod .nm{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pod .cnt{font-size:12px;color:var(--muted);margin-bottom:6px}
+.step{border-radius:10px 10px 0 0;background:var(--card2);display:flex;align-items:center;justify-content:center;font-family:var(--race);font-size:22px}
+.step.p1{height:78px;background:var(--gold-soft);color:var(--gold);border:1px solid #5a4620;border-bottom:0}
+.step.p2{height:58px}
+.step.p3{height:44px}
+/* аватар: фото машины или гоночный номер */
+.av{position:relative;width:64px;height:46px;border-radius:10px;background:var(--card2);overflow:hidden;flex:none;
+  display:flex;align-items:center;justify-content:center;font-family:var(--race);font-size:17px;color:var(--text)}
+.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.av .tag{position:absolute;left:4px;top:4px;font-size:10px;line-height:1;padding:3px 4px;border-radius:4px;background:rgba(0,0,0,.65);color:#fff;font-family:var(--race)}
+.av.big{width:100%;height:auto;aspect-ratio:16/9;border-radius:14px;font-size:44px}
+.av.lg{width:76px;height:54px}
+/* список пилотов */
+.chips{display:flex;gap:8px;margin:4px 0 10px}
+.chip{padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:13px;cursor:pointer}
+.chip.on{background:var(--accent-soft);border-color:#6a2a1e;color:#ffb3a3}
+.plist{display:flex;flex-direction:column;gap:8px}
+.prow{display:flex;align-items:center;gap:12px;padding:8px;border-radius:12px;background:var(--card);border:1px solid var(--line);cursor:pointer}
+.prow.mine{border-color:#6a2a1e;background:#1f1517}
+.pinfo{flex:1;min-width:0}
+.pname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pname .you{color:var(--accent);font-weight:500;font-size:12px;margin-left:4px}
+.prole{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcount{text-align:right;font-family:var(--race);font-size:16px;flex:none}
+.pcount small{display:block;font-family:system-ui,sans-serif;font-size:11px;color:var(--muted)}
+.pcount.done{color:var(--ok)}
+/* профиль пилота */
+.sheet-bg{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
+.sheet-bg.open{display:flex}
+.sheet{width:100%;max-width:720px;max-height:88vh;overflow:auto;background:var(--card);border-radius:18px 18px 0 0;border-top:1px solid var(--line);
+  padding:16px 16px calc(20px + env(safe-area-inset-bottom));animation:up .22s ease}
+@keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+.sheet h3{font-family:var(--race);font-weight:400;font-size:22px;margin:12px 0 2px}
+.sheet .sub{color:var(--muted);font-size:13px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.stat{background:var(--card2);border-radius:12px;padding:10px 12px}
+.stat span{display:block;font-size:12px;color:var(--muted)}
+.stat b{font-family:var(--race);font-weight:400;font-size:22px}
+.about{margin-top:12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--card2);border-radius:0;font-size:14px;line-height:1.5}
+.btn{display:block;text-align:center;margin-top:14px;padding:12px;border-radius:12px;background:var(--accent);color:#fff;text-decoration:none;font-weight:600}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--text)}
+/* расписание */
+.today{border-color:#6a2a1e;background:linear-gradient(135deg,#2a1714 0%,var(--card) 70%)}
+.today .day{font-family:var(--race);font-size:13px;color:var(--accent);letter-spacing:1px;text-transform:uppercase}
+.today .what{font-size:20px;font-weight:600;margin:6px 0 4px}
+.days{display:flex;flex-direction:column;gap:6px}
+.drow{display:flex;gap:12px;padding:10px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
+.drow .d{width:34px;flex:none;font-family:var(--race);color:var(--muted)}
+.drow .w{flex:1;min-width:0}
+.drow .n{font-size:12px;color:var(--muted);margin-top:2px}
+.drow.past{opacity:.55}
+/* правила */
+.rule{margin-bottom:10px;line-height:1.6;font-size:15px}
+.rule b{display:block;font-family:var(--race);font-weight:400;color:var(--gold);font-size:15px;margin-bottom:2px}
+/* сводка */
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kv div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.kv span{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+.kv b{font-family:var(--race);font-weight:400;font-size:24px}
+/* нижнее меню */
+nav{position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;background:rgba(15,15,18,.96);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);backdrop-filter:blur(8px)}
+nav button{flex:1;padding:8px 4px 10px;background:none;border:0;color:var(--muted);font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button svg{width:22px;height:22px}
+nav button.active{color:var(--accent)}
 </style>
 </head>
 <body>
 <header>
-  <h1>Клуб</h1>
-  <button id="refresh" onclick="loadAll()">⟳ Обновить</button>
+  <div class="logo"><span>KHR</span></div>
+  <div class="title"><h1>Khinkali Racing Club</h1><div id="status">Загрузка...</div></div>
+  <button class="iconbtn" onclick="loadAll()" aria-label="Обновить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5-4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg></button>
 </header>
-<div id="status">Загрузка...</div>
+<div class="stripe"></div>
 
 <main>
-  <section id="rules"></section>
-  <section id="schedule"></section>
   <section id="pilots"></section>
+  <section id="schedule"></section>
+  <section id="rules"></section>
   <section id="summary"></section>
 </main>
 
+<div class="sheet-bg" id="sheet" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheetBody"></div></div>
+
 <nav>
-  <button data-t="rules" class="active" onclick="show('rules')">Правила</button>
-  <button data-t="schedule" onclick="show('schedule')">Расписание</button>
-  <button data-t="pilots" onclick="show('pilots')">Пилоты</button>
-  <button data-t="summary" onclick="show('summary')">Сводка</button>
+  <button data-t="pilots" onclick="show('pilots')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 14v7M10 12l-6.7-2M14 12l6.7-2"/></svg>Пилоты</button>
+  <button data-t="schedule" onclick="show('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg>Неделя</button>
+  <button data-t="rules" onclick="show('rules')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6v13M12 6v13M21 6v13"/></svg>Правила</button>
+  <button data-t="summary" onclick="show('summary')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Сводка</button>
 </nav>
 
 <script>
-// Telegram: сообщаем, что приложение готово (в обычном браузере просто ничего не происходит)
-if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.ready(); window.Telegram.WebApp.expand(); }
+// Telegram: сообщаем, что приложение готово, и красим шапку Телеграма в цвет приложения
+const TG = window.Telegram && window.Telegram.WebApp;
+if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBackgroundColor('#0f0f12'); } catch (e) {} }
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-11a';
+const APP_VERSION = '2026-11-11b';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -81,12 +161,17 @@ fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
 const BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4hL-1v8UUlMxTynXm6gtaCK0KLgjAtxmxONulVDd0HWh4khlTbzaYICkV8xr_3w/pub?single=true&output=csv&gid=';
 const SHEETS = { rules: '132127449', schedule: '900781415', pilots: '1543070136', summary: '1464761771' };
 const DAYS = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+const SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+// Дуэли, фото машин и подписи отдаёт бот. Бесплатный Render засыпает — первый ответ может идти до минуты.
+const BOT_URL = 'https://khr-bot.onrender.com';
+const BOT_PROFILE_LINK = 'https://t.me/Khin_raci_bot?start=profile';
 
-let data = null;
-let pilotSort = 'num';
-// Ник того, кто открыл приложение в Телеграме (в обычном браузере его нет) — для подсветки своей строки
-const myUsername = ((window.Telegram && Telegram.WebApp.initDataUnsafe.user || {}).username || '').toLowerCase();
-const isMe = tg => myUsername !== '' && String(tg || '').trim().replace(/^@/, '').toLowerCase() === myUsername;
+let data = null, duelData = null, pilotSort = 'duels';
+// Ник того, кто открыл приложение в Телеграме (в обычном браузере его нет) — для своей карточки и подсветки
+// (в обычном браузере для проверки можно открыть с ?me=ник)
+const myUsername = (((TG && TG.initDataUnsafe.user) || {}).username || new URLSearchParams(location.search).get('me') || '').toLowerCase();
+const tgKey = tg => String(tg || '').trim().replace(/^@/, '').toLowerCase();
+const isMe = tg => myUsername !== '' && tgKey(tg) === myUsername;
 
 // Разбор CSV: поддерживает кавычки и переносы строк внутри ячеек
 function parseCSV(text) {
@@ -107,7 +192,7 @@ function parseCSV(text) {
   return rows.map(r => r.map(x => x.trim())).filter(r => r.some(x => x !== ''));
 }
 
-const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const cells = r => r.filter(x => x !== '');
 const num = x => parseFloat(String(x || '0').replace(',', '.')) || 0;
 
@@ -122,21 +207,163 @@ async function loadAll() {
     }));
     data = Object.fromEntries(entries);
     renderAll();
-    const t = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    document.getElementById('status').textContent = 'Обновлено в ' + t + (myUsername ? ' · ты @' + myUsername : '');
+    setStatus();
   } catch (e) {
-    document.getElementById('status').innerHTML = '<span class="err">Не удалось загрузить таблицу. Проверь, что она опубликована в интернете.</span>';
+    document.getElementById('status').innerHTML = '<span class="err">Не удалось загрузить таблицу</span>';
   }
 }
 
+function setStatus() {
+  const t = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const week = duelData && duelData.week ? 'Неделя ' + duelData.week + ' · ' : '';
+  document.getElementById('status').textContent = week + 'обновлено в ' + t;
+}
+
+async function loadDuels() {
+  duelData = null;
+  try {
+    const r = await fetch(BOT_URL + '/duels?t=' + Date.now(), { cache: 'no-store' });
+    duelData = await r.json();
+    if (!duelData.pilots) duelData = { error: true };
+  } catch (e) { duelData = { error: true }; }
+  if (data) { renderPilots(); setStatus(); }
+}
+
 function renderAll() {
-  renderRules();
-  renderSchedule();
   renderPilots();
+  renderSchedule();
+  renderRules();
   renderSummary();
 }
 
-// Какие строки правил выделять золотым. Не по списку слов, а по виду строки,
+// ---------- Пилоты ----------
+function pilotRows() {
+  const head = (data.pilots.find(r => r[0] === '№') || []).map(h => h.toLowerCase());
+  const iRole = head.findIndex(h => h.startsWith('роль'));
+  return data.pilots.filter(r => /^\d+$/.test(r[0] || '')).map(r => ({
+    num: r[0], name: r[1] || '—', tg: r[2] || '', role: (iRole >= 0 ? r[iRole] : r[r.length - 1]) || '—'
+  }));
+}
+const ready = () => duelData && !duelData.error;
+const normOf = () => ready() ? duelData.norm : 20;
+const duelOf = p => (ready() && duelData.pilots[tgKey(p.tg)]) || { week: 0, prev: 0, total: 0 };
+const profOf = p => (ready() && duelData.profiles && duelData.profiles[tgKey(p.tg)]) || {};
+
+// Фото машины из профиля (если есть), иначе крупный гоночный номер
+function avatar(p, cls = '') {
+  const pr = profOf(p);
+  const img = pr.photo ? `<img loading="lazy" alt="" src="${BOT_URL}/photo/${encodeURIComponent(tgKey(p.tg))}?v=${pr.photo}" onerror="this.remove()">` : '';
+  return `<div class="av ${cls}">${img ? '' : esc(p.num)}${img}${img ? `<span class="tag">${esc(p.num)}</span>` : ''}</div>`;
+}
+
+function progress(n, norm, thin) {
+  const pct = Math.min(100, Math.round(n / norm * 100));
+  return `<div class="bar ${thin ? 'thin' : ''} ${n >= norm ? 'done' : ''}"><i style="width:${pct}%"></i></div>`;
+}
+
+function renderPilots() {
+  const pilots = pilotRows();
+  const norm = normOf();
+  const taglines = data.pilots.filter(r => cells(r).length === 1 && r[0] && !/^\d/.test(r[0]) && r[0] !== 'ИТОГО' && r[0] !== 'СТАТИСТИКА ПИЛОТОВ').map(r => r[0]);
+  const waiting = !duelData ? 'Загружаю дуэли от бота… Если бот спал, это займёт до минуты.'
+    : !ready() ? 'Не удалось получить дуэли от бота. Нажми «обновить» через минуту.' : '';
+  let html = '';
+
+  // Своя карточка: сколько сдал и сколько осталось
+  const me = pilots.find(p => isMe(p.tg));
+  if (me) {
+    const d = duelOf(me);
+    const left = Math.max(0, norm - d.week);
+    html += `<div class="card me" onclick="openPilot('${esc(me.num)}')">
+      <div class="me-top">${avatar(me, 'lg')}<div style="flex:1;min-width:0"><div class="me-num">ТЫ · №${esc(me.num)}</div>
+        <div class="pname">${esc(me.name)}</div><div class="prole">${esc(me.role)}</div></div></div>
+      <div class="me-big">${ready() ? d.week : '…'} <small>из ${norm} дуэлей за неделю</small></div>
+      ${progress(ready() ? d.week : 0, norm)}
+      <div class="note" style="margin:8px 0 0">${!ready() ? '' : left ? 'Осталось ' + left + '. Скрины «История заездов» — в тему отчётов.' : 'Норма выполнена ✅'}</div>
+    </div>`;
+    if (!profOf(me).photo) html += `<a class="btn ghost" href="${BOT_PROFILE_LINK}">🏎 Поставить фото своей машины в ливрее клуба</a>`;
+  }
+
+  // Подиум недели
+  if (ready()) {
+    const top = [...pilots].map(p => ({ p, n: duelOf(p).week })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 3);
+    if (top.length) {
+      const order = [top[1], top[0], top[2]];
+      const cls = ['p2', 'p1', 'p3'], place = ['2', '1', '3'];
+      html += `<div class="label">Лидеры недели</div><div class="podium">${order.map((x, i) => x ? `
+        <div class="pod" onclick="openPilot('${esc(x.p.num)}')">${avatar(x.p)}<div class="nm">${esc(x.p.name)}</div>
+          <div class="cnt">${x.n} дуэл.</div><div class="step ${cls[i]}">${place[i]}</div></div>` : '<div></div>').join('')}</div>`;
+    }
+  }
+
+  // Список пилотов
+  const list = [...pilots];
+  if (pilotSort === 'duels') list.sort((a, b) => duelOf(b).week - duelOf(a).week || duelOf(b).prev - duelOf(a).prev || num(a.num) - num(b.num));
+  else list.sort((a, b) => num(a.num) - num(b.num));
+  html += `<div class="label">Пилоты · ${pilots.length}</div>
+    ${waiting ? `<p class="note">${waiting}</p>` : `<p class="note">Неделя ${esc(duelData.week)}, норма ${norm} дуэлей. Нажми на пилота, чтобы открыть профиль.</p>`}
+    <div class="chips"><span class="chip ${pilotSort === 'duels' ? 'on' : ''}" onclick="setSort('duels')">По дуэлям</span>
+      <span class="chip ${pilotSort === 'num' ? 'on' : ''}" onclick="setSort('num')">По номеру</span></div>
+    <div class="plist">${list.map(p => {
+      const d = duelOf(p);
+      return `<div class="prow ${isMe(p.tg) ? 'mine' : ''}" onclick="openPilot('${esc(p.num)}')">${avatar(p)}
+        <div class="pinfo"><div class="pname">${esc(p.name)}${isMe(p.tg) ? '<span class="you">это ты</span>' : ''}</div>
+          <div class="prole">${esc(p.role)}</div>${ready() ? progress(d.week, norm, true) : ''}</div>
+        <div class="pcount ${ready() && d.week >= norm ? 'done' : ''}">${ready() ? d.week : '…'}<small>из ${norm}</small></div></div>`;
+    }).join('')}</div>
+    ${taglines.map(t => `<p class="note" style="text-align:center;margin-top:16px">${esc(t)}</p>`).join('')}`;
+  document.getElementById('pilots').innerHTML = html;
+}
+
+function setSort(s) { pilotSort = s; renderPilots(); }
+
+function openPilot(numStr) {
+  const p = pilotRows().find(x => x.num === numStr);
+  if (!p) return;
+  const d = duelOf(p), pr = profOf(p), norm = normOf();
+  const mine = isMe(p.tg);
+  document.getElementById('sheetBody').innerHTML = `<div class="grab"></div>
+    ${avatar(p, 'big')}
+    <h3>${esc(p.name)}</h3>
+    <div class="sub">№${esc(p.num)}${p.tg ? ' · ' + esc(p.tg) : ''} · ${esc(p.role)}</div>
+    ${pr.about ? `<div class="about">${esc(pr.about)}</div>` : ''}
+    <div class="stats">
+      <div class="stat"><span>Эта неделя</span><b>${ready() ? d.week : '…'}<small style="font-size:13px;color:var(--muted)"> / ${norm}</small></b>${ready() ? progress(d.week, norm, true) : ''}</div>
+      <div class="stat"><span>Прошлая неделя</span><b>${ready() ? d.prev : '…'}</b></div>
+    </div>
+    ${mine ? `<a class="btn" href="${BOT_PROFILE_LINK}">${pr.photo ? 'Изменить профиль в боте' : 'Поставить фото машины'}</a>
+      <p class="note" style="text-align:center">Машина на фото — обязательно в ливрее клуба</p>` : ''}
+    <a class="btn ghost" href="#" onclick="closeSheet();return false">Закрыть</a>`;
+  document.getElementById('sheet').classList.add('open');
+  if (TG && TG.HapticFeedback) try { TG.HapticFeedback.selectionChanged(); } catch (e) {}
+}
+function closeSheet() { document.getElementById('sheet').classList.remove('open'); }
+
+// ---------- Неделя (расписание) ----------
+function renderSchedule() {
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  let hint = '', note = '';
+  const days = [];
+  for (const r of data.schedule) {
+    const day = (r[0] || '').trim();
+    if (day === 'Подсказка') { hint = r[1] || ''; continue; }
+    if (day.startsWith('↓')) { note = day; continue; }
+    const idx = DAYS.findIndex(d => d.toLowerCase() === day.toLowerCase());
+    if (idx >= 0) days.push({ idx, day, what: r[2] || '—', extra: r[3] || '' });
+  }
+  const today = days.find(d => d.idx === todayIdx);
+  document.getElementById('schedule').innerHTML = `<h2>Неделя клуба</h2>
+    ${today ? `<div class="card today"><div class="day">Сегодня · ${esc(today.day)}</div><div class="what">${esc(today.what)}</div>
+      ${today.extra ? `<div class="note" style="margin:0">${esc(today.extra)}</div>` : ''}</div>` : ''}
+    ${note ? `<p class="note">${esc(note)}</p>` : ''}
+    <div class="label">Вся неделя</div>
+    <div class="days">${days.map(d => `<div class="drow ${d.idx < todayIdx ? 'past' : ''}" ${d.idx === todayIdx ? 'style="border-color:#6a2a1e"' : ''}>
+      <div class="d">${SHORT[d.idx]}</div><div class="w"><div>${esc(d.what)}</div>${d.extra ? `<div class="n">${esc(d.extra)}</div>` : ''}</div></div>`).join('')}</div>
+    ${hint ? `<p class="note">${esc(hint)}</p>` : ''}`;
+}
+
+// ---------- Правила ----------
+// Какие строки правил выделять. Не по списку слов, а по виду строки,
 // чтобы новые правила и должности из таблицы оформлялись сами, без правки кода.
 function isRuleHeading(line) {
   const s = line.trim();
@@ -151,85 +378,12 @@ function renderRules() {
     cell.split('\n').map(line => {
       const t = esc(line);
       return isRuleHeading(line) ? `<b>${t}</b>` : t;
-    }).join('<br>')
-  ).map(p => `<div class="rule">${p}</div>`).join('');
-  document.getElementById('rules').innerHTML = html;
+    }).join('<br>').replace(/<\/b><br>(<br>)?/g, '</b>')
+  ).map(p => `<div class="card rule">${p}</div>`).join('');
+  document.getElementById('rules').innerHTML = '<h2>Правила клуба</h2>' + html;
 }
 
-function renderSchedule() {
-  const todayName = DAYS[(new Date().getDay() + 6) % 7];
-  let rows = '', hint = '', note = '';
-  for (const r of data.schedule) {
-    const day = (r[0] || '').trim();
-    if (day === 'Подсказка') { hint = r[1] || ''; continue; }
-    if (day.startsWith('↓')) { note = day; continue; }
-    if (!DAYS.some(d => d.toLowerCase() === day.toLowerCase())) continue;
-    const isToday = day.toLowerCase() === todayName.toLowerCase();
-    rows += `<tr class="${isToday ? 'today' : ''}"><td>${esc(day)}${isToday ? ' ←' : ''}</td><td>${esc(r[2] || '—')}</td><td>${esc(r[3] || '')}</td></tr>`;
-  }
-  document.getElementById('schedule').innerHTML =
-    `<h2>Расписание недели</h2>
-     ${note ? `<p class="note">${esc(note)}</p>` : ''}
-     <div class="card wrap"><table>
-       <thead><tr><th>День</th><th>План / задача</th><th>Примечания</th></tr></thead>
-       <tbody>${rows}</tbody>
-     </table></div>
-     ${hint ? `<p class="note">${esc(hint)}</p>` : ''}`;
-}
-
-// Дуэли считает бот по скринам из темы «отчёты по дуэлям» и отдаёт их по ссылке /duels.
-// Бесплатный Render засыпает, поэтому первый ответ может идти до минуты — таблицу показываем сразу, дуэли дорисуем.
-const BOT_URL = 'https://khr-bot.onrender.com';
-let duelData = null;
-async function loadDuels() {
-  duelData = null;
-  try {
-    const r = await fetch(BOT_URL + '/duels?t=' + Date.now(), { cache: 'no-store' });
-    duelData = await r.json();
-    if (!duelData.pilots) duelData = { error: true };
-  } catch (e) { duelData = { error: true }; }
-  if (data) renderPilots();
-}
-
-function renderPilots() {
-  // Колонки ищем по заголовкам таблицы, а не по номерам: так удалённые в таблице колонки пропадут и тут
-  const head = (data.pilots.find(r => r[0] === '№') || []).map(h => h.toLowerCase());
-  const iRole = head.findIndex(h => h.startsWith('роль'));
-  const pilots = data.pilots.filter(r => /^\d+$/.test(r[0] || ''));
-  const taglines = data.pilots.filter(r => cells(r).length === 1 && r[0] && !/^\d/.test(r[0]) && r[0] !== 'ИТОГО').map(r => r[0]);
-  const ready = duelData && !duelData.error;
-  const norm = ready ? duelData.norm : 20;
-  const duel = r => (ready && duelData.pilots[String(r[2] || '').trim().replace(/^@/, '').toLowerCase()]) || { week: 0, prev: 0 };
-  const list = [...pilots];
-  if (pilotSort === 'duels') list.sort((a, b) => duel(b).week - duel(a).week || duel(b).prev - duel(a).prev || num(a[0]) - num(b[0]));
-  else list.sort((a, b) => num(a[0]) - num(b[0]));
-  const cell = v => ready ? v : (duelData ? '?' : '…');
-  const body = list.map(r => {
-    const d = duel(r);
-    return `<tr class="${isMe(r[2]) ? 'me' : ''}">
-      <td>${esc(r[0])}</td><td>${esc(r[1])}${isMe(r[2]) ? ' ← ты' : ''}</td><td>${esc(r[2])}</td>
-      <td class="num"><b>${cell(d.week + '/' + norm)}</b>${ready && d.week >= norm ? ' ✅' : ''}</td>
-      <td class="num">${cell(d.prev)}</td><td>${esc((iRole >= 0 ? r[iRole] : r[r.length - 1]) || '—')}</td></tr>`;
-  }).join('');
-  const info = ready ? `Дуэли за неделю ${esc(duelData.week)}, норма ${norm}. Считает бот по скринам из темы «отчёты по дуэлям».`
-    : duelData ? 'Не удалось получить дуэли от бота. Нажми «Обновить» через минуту.'
-    : 'Загружаю дуэли от бота… Если бот спал, это займёт до минуты.';
-  document.getElementById('pilots').innerHTML =
-    `<h2>Статистика пилотов</h2>
-     ${taglines.map(t => `<p class="note">${esc(t)}</p>`).join('')}
-     <p class="note">${info}</p>
-     <button class="sort" onclick="togglePilotSort()">Сортировка: ${pilotSort === 'num' ? 'по номеру (нажми для дуэлей)' : 'по дуэлям (нажми для номеров)'}</button>
-     <div class="card wrap"><table>
-       <thead><tr><th>№</th><th>Имя</th><th>Телеграм</th><th class="num">Дуэли</th><th class="num">Прошлая неделя</th><th>Роль</th></tr></thead>
-       <tbody>${body}</tbody>
-     </table></div>`;
-}
-
-function togglePilotSort() {
-  pilotSort = pilotSort === 'num' ? 'duels' : 'num';
-  renderPilots();
-}
-
+// ---------- Сводка ----------
 function renderSummary() {
   const rows = data.summary.filter(r => r[0] && r[1] && r[0] !== 'Показатель' && r[0] !== 'Примечание');
   const note = data.summary.find(r => cells(r).length === 1 && r[0].length > 40);
@@ -242,9 +396,10 @@ function renderSummary() {
 function show(name) {
   document.querySelectorAll('section').forEach(s => s.classList.toggle('active', s.id === name));
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.t === name));
+  window.scrollTo(0, 0);
 }
 
-show('rules');
+show('pilots');
 loadAll();
 </script>
 </body>
