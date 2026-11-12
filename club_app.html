@@ -90,6 +90,18 @@ h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;lett
 .rivrow:first-child{border-top:0;padding-top:0}
 .rivrow .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rivrow .c{font-family:var(--race)}
+/* мастерская ливрей */
+.back{display:inline-block;color:var(--muted);text-decoration:none;font-size:14px;margin:4px 0 2px}
+.dhead{display:flex;align-items:center;gap:12px;margin:18px 0 10px;cursor:pointer}
+.lvgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.lv{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;min-width:0}
+.lvimg{aspect-ratio:16/10;background:var(--card2)}
+.lvimg img{width:100%;height:100%;object-fit:cover;display:block}
+.lvt{font-size:13px;font-weight:600;padding:8px 10px 0;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lvs{font-size:12px;color:var(--muted);padding:2px 10px 0}
+.lv .lvt:last-child,.lv .lvs:last-child{padding-bottom:10px}
+.lvbig{width:100%;border-radius:12px;display:block;background:var(--card2);min-height:120px}
+.sheet a:not(.btn){color:#ffb3a3}
 /* аватар: фото машины или гоночный номер */
 .av{position:relative;width:64px;height:46px;border-radius:10px;background:var(--card2);overflow:hidden;flex:none;
   display:flex;align-items:center;justify-content:center;font-family:var(--race);font-size:17px;color:var(--text)}
@@ -164,6 +176,7 @@ nav button.active{color:var(--accent)}
 <main>
   <section id="pilots"></section>
   <section id="ratings"></section>
+  <section id="workshop"></section>
   <section id="schedule"></section>
   <section id="rules"></section>
   <section id="summary"></section>
@@ -186,7 +199,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-12b';
+const APP_VERSION = '2026-11-12c';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -264,12 +277,13 @@ async function loadDuels() {
     duelData = await r.json();
     if (!duelData.pilots) duelData = { error: true };
   } catch (e) { duelData = { error: true }; }
-  if (data) { renderPilots(); renderRatings(); setStatus(); }
+  if (data) { renderPilots(); renderRatings(); renderWorkshop(); setStatus(); }
 }
 
 function renderAll() {
   renderPilots();
   renderRatings();
+  renderWorkshop();
   renderSchedule();
   renderRules();
   renderSummary();
@@ -336,6 +350,10 @@ function renderPilots() {
   }
 
   if (ready()) html += `<a class="btn ghost" href="#" onclick="show('ratings');return false">🏆 Награды недели, карты и соперничества</a>`;
+  if (designers().length) {
+    const n = designers().reduce((s, x) => s + x.items.length, 0);
+    html += `<a class="btn ghost" href="#" onclick="openWorkshop('');return false">🎨 Мастерская ливрей${n ? ' · ' + n : ''}</a>`;
+  }
 
   // Список пилотов
   const list = [...pilots];
@@ -434,6 +452,10 @@ function openPilot(numStr) {
   const p = pilotRows().find(x => x.num === numStr);
   if (!p) return;
   const d = duelOf(p), pr = profOf(p), norm = normOf(), st = ready() && d.stats;
+  // Ливрейщик — ссылка на его портфолио; любой пилот — ливреи, нарисованные для него
+  const des = designers(), me = des.find(x => x.tg && x.tg === tgKey(p.tg));
+  const lvMine = me ? me.items : [];
+  const lvFor = des.flatMap(x => x.items.filter(it => it.for && it.for.toLowerCase() === p.name.toLowerCase()).map(it => ({ ...it, by: x.name })));
   const mine = isMe(p.tg);
   document.getElementById('sheetBody').innerHTML = `<div class="grab"></div>
     ${avatar(p, 'big')}
@@ -453,6 +475,8 @@ function openPilot(numStr) {
       <div class="rivrow" onclick='openByName(${nameAttr(r[0])})'><span class="n">${esc(r[0])}</span><span class="note" style="margin:0">${r[1]} дуэл.</span>
         <span class="c">${r[2]} : ${r[3]}</span></div>`).join('')}</div>` : ''}
     ${st && st.n ? '<p class="note">Статистика по дуэлям в норму за последние 10 недель.</p>' : ''}
+    ${lvMine.length ? `<a class="btn ghost" href="#" onclick="closeSheet();openWorkshop('${esc(tgKey(p.tg))}');return false">🎨 Портфолио ливрей · ${lvMine.length}</a>` : ''}
+    ${lvFor.length ? `<div class="label">Ливреи для ${esc(p.name)}</div><div class="lvgrid">${lvFor.map(lvCard).join('')}</div>` : ''}
     ${mine ? `<a class="btn" href="${BOT_PROFILE_LINK}">${pr.photo ? 'Изменить профиль в боте' : 'Поставить фото машины'}</a>
       <p class="note" style="text-align:center">Машина на фото — обязательно в ливрее клуба</p>` : ''}
     <a class="btn ghost" href="#" onclick="closeSheet();return false">Закрыть</a>`;
@@ -460,6 +484,50 @@ function openPilot(numStr) {
   if (TG && TG.HapticFeedback) try { TG.HapticFeedback.selectionChanged(); } catch (e) {}
 }
 function closeSheet() { document.getElementById('sheet').classList.remove('open'); }
+
+// ---------- Мастерская ливрей: портфолио ливрейщиков (ливреи они загружают через бота, /livery) ----------
+const designers = () => (ready() && duelData.designers) || [];
+const lvImg = id => `${BOT_URL}/livery/${encodeURIComponent(id)}`;
+let workshopFilter = '';
+// 1 ливрея, 2 ливреи, 5 ливрей
+const plural = (n, one, few, many) => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
+function lvCard(it) {
+  return `<div class="lv" onclick="openLivery('${esc(it.id)}')"><div class="lvimg"><img loading="lazy" alt="" src="${lvImg(it.id)}" onerror="this.remove()"></div>
+    <div class="lvt">${esc(it.t || 'Без названия')}</div>${it.for ? `<div class="lvs">для ${esc(it.for)}</div>` : ''}</div>`;
+}
+function openWorkshop(tg) { workshopFilter = tg || ''; renderWorkshop(); show('workshop'); }
+function renderWorkshop() {
+  const el = document.getElementById('workshop');
+  const des = designers();
+  const total = des.reduce((n, x) => n + x.items.length, 0);
+  let html = `<a class="back" href="#" onclick="show('pilots');return false">← Пилоты</a><h2>Мастерская ливрей</h2>
+    <p class="note">Работы ливрейщиков клуба: ${plural(total, 'ливрея', 'ливреи', 'ливрей')}. Нажми на ливрею, чтобы открыть её целиком.</p>`;
+  if (!ready()) { el.innerHTML = html + '<p class="note">Загружаю данные от бота…</p>'; return; }
+  if (!des.length) { el.innerHTML = html + '<p class="note">Пока нет ни одного ливрейщика. Их назначает владелец клуба командой /designer @ник.</p>'; return; }
+  if (des.length > 1) html += `<div class="chips" style="flex-wrap:wrap"><span class="chip ${!workshopFilter ? 'on' : ''}" onclick="openWorkshop('')">Все</span>${des.map(x =>
+    `<span class="chip ${workshopFilter === x.tg ? 'on' : ''}" onclick="openWorkshop('${esc(x.tg)}')">${esc(x.name)}</span>`).join('')}</div>`;
+  for (const x of des.filter(x => !workshopFilter || x.tg === workshopFilter)) {
+    const p = pilotRows().find(r => tgKey(r.tg) === x.tg);
+    html += `<div class="dhead" ${p ? `onclick="openPilot('${esc(p.num)}')"` : ''}>${p ? avatar(p) : '<div class="av">🎨</div>'}
+      <div style="flex:1;min-width:0"><div class="pname">${esc(x.name)}</div><div class="prole">Ливрейщик · ${plural(x.items.length, 'работа', 'работы', 'работ')}</div></div></div>
+      ${x.items.length ? `<div class="lvgrid">${x.items.map(lvCard).join('')}</div>` : '<p class="note">Пока пусто — работы появятся, когда ливрейщик загрузит их через бота.</p>'}`;
+  }
+  el.innerHTML = html;
+}
+function openLivery(id) {
+  let it = null, by = null;
+  for (const x of designers()) { const f = x.items.find(i => String(i.id) === String(id)); if (f) { it = f; by = x; break; } }
+  if (!it) return;
+  const d = it.d ? new Date(it.d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  document.getElementById('sheetBody').innerHTML = `<div class="grab"></div>
+    <img class="lvbig" alt="" src="${lvImg(it.id)}">
+    <h3 style="font-size:18px">${esc(it.t || 'Без названия')}</h3>
+    <div class="sub">Автор: <a href="#" onclick='openByName(${nameAttr(by.name)});return false'>${esc(by.name)}</a>${d ? ' · ' + d : ''}</div>
+    ${it.for ? `<div class="about">Для пилота: <a href="#" onclick='openByName(${nameAttr(it.for)});return false'>${esc(it.for)}</a></div>` : ''}
+    <a class="btn ghost" href="#" onclick="closeSheet();openWorkshop('${esc(by.tg)}');return false">Все работы ${esc(by.name)}</a>
+    <a class="btn ghost" href="#" onclick="closeSheet();return false">Закрыть</a>`;
+  document.getElementById('sheet').classList.add('open');
+}
 
 // ---------- Неделя (расписание) ----------
 function renderSchedule() {
