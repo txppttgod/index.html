@@ -63,6 +63,33 @@ h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;lett
 .mc{font-family:var(--race)}
 .mlogo{display:block;width:64px;height:46px;margin:0 auto 6px;border-radius:10px;object-fit:cover;background:var(--card2)}
 .mthumb{width:30px;height:30px;border-radius:7px;object-fit:cover;flex:none;background:var(--card2)}
+.mking{font-size:12px;color:var(--gold);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* вкладка «Рейтинги»: награды, карты, соперничества */
+.aw{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.awc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;min-width:0}
+.awc .ico{font-size:22px;line-height:1}
+.awc .t{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:8px 0 4px}
+.awc .w{font-weight:600;overflow-wrap:anywhere;line-height:1.3}
+.awc .v{font-family:var(--race);font-size:18px;margin-top:2px}
+.awc .s{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.awc.gold{border-color:#5a4620;background:linear-gradient(135deg,#2a2314 0%,var(--card) 70%)}
+.prevaw{display:flex;flex-direction:column;gap:8px}
+.prevaw div{display:flex;gap:10px;align-items:baseline;font-size:14px}
+.prevaw b{font-weight:600}
+.rv{display:flex;align-items:center;gap:10px}
+.rv .side{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;cursor:pointer}
+.rv .side .nm{font-size:13px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv .score{font-family:var(--race);font-size:26px;flex:none;text-align:center}
+.rv .score small{display:block;font-family:system-ui,sans-serif;font-size:11px;color:var(--muted)}
+.split{display:flex;height:6px;border-radius:4px;overflow:hidden;margin-top:10px;background:var(--card2)}
+.split i{display:block;height:100%}
+.split i:first-child{background:var(--accent)}
+.split i:last-child{background:#6b6b78}
+.streak{display:inline-block;margin-left:6px;font-size:11px;padding:2px 6px;border-radius:10px;background:var(--accent-soft);color:#ffb3a3;font-weight:500}
+.rivrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.rivrow:first-child{border-top:0;padding-top:0}
+.rivrow .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rivrow .c{font-family:var(--race)}
 /* аватар: фото машины или гоночный номер */
 .av{position:relative;width:64px;height:46px;border-radius:10px;background:var(--card2);overflow:hidden;flex:none;
   display:flex;align-items:center;justify-content:center;font-family:var(--race);font-size:17px;color:var(--text)}
@@ -136,6 +163,7 @@ nav button.active{color:var(--accent)}
 
 <main>
   <section id="pilots"></section>
+  <section id="ratings"></section>
   <section id="schedule"></section>
   <section id="rules"></section>
   <section id="summary"></section>
@@ -145,6 +173,7 @@ nav button.active{color:var(--accent)}
 
 <nav>
   <button data-t="pilots" onclick="show('pilots')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 14v7M10 12l-6.7-2M14 12l6.7-2"/></svg>Пилоты</button>
+  <button data-t="ratings" onclick="show('ratings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Рейтинги</button>
   <button data-t="schedule" onclick="show('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg>Неделя</button>
   <button data-t="rules" onclick="show('rules')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6v13M12 6v13M21 6v13"/></svg>Правила</button>
   <button data-t="summary" onclick="show('summary')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Сводка</button>
@@ -157,7 +186,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-12a';
+const APP_VERSION = '2026-11-12b';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -235,11 +264,12 @@ async function loadDuels() {
     duelData = await r.json();
     if (!duelData.pilots) duelData = { error: true };
   } catch (e) { duelData = { error: true }; }
-  if (data) { renderPilots(); setStatus(); }
+  if (data) { renderPilots(); renderRatings(); setStatus(); }
 }
 
 function renderAll() {
   renderPilots();
+  renderRatings();
   renderSchedule();
   renderRules();
   renderSummary();
@@ -305,22 +335,7 @@ function renderPilots() {
     }
   }
 
-  // Популярные карты: подиум недели и топ за всё время (трассы бот берёт со скринов дуэлей)
-  const tr = ready() && duelData.tracks;
-  // Логотип карты ставит владелец через бота (/maplogo); строка рейтинга: [название, дуэлей, версия логотипа, ключ]
-  const logo = (x, cls) => x[2] ? `<img class="${cls}" loading="lazy" alt="" src="${BOT_URL}/maplogo/${encodeURIComponent(x[3])}?v=${x[2]}" onerror="this.remove()">` : '';
-  if (tr && tr.week && tr.week.length) {
-    const top = tr.week.slice(0, 3), order = [top[1], top[0], top[2]];
-    html += `<div class="label">Карты недели</div><div class="podium">${order.map((x, i) => x ? `
-      <div class="pod">${logo(x, 'mlogo')}<div class="nm map">${esc(x[0])}</div><div class="cnt">${x[1]} дуэл.</div>
-        <div class="step ${cls[i]}">${place[i]}</div></div>` : '<div></div>').join('')}</div>`;
-  }
-  if (tr && tr.all && tr.all.length) {
-    const max = tr.all[0][1] || 1;
-    html += `<div class="label">Самые играемые карты · за всё время</div><div class="card">${tr.all.slice(0, 5).map((x, i) => `
-      <div class="mrow"><span class="mi">${i + 1}</span>${logo(x, 'mthumb')}<span class="mn">${esc(x[0])}</span><span class="mc">${x[1]}</span></div>
-      <div class="bar thin"><i style="width:${Math.round(x[1] / max * 100)}%"></i></div>`).join('')}</div>`;
-  }
+  if (ready()) html += `<a class="btn ghost" href="#" onclick="show('ratings');return false">🏆 Награды недели, карты и соперничества</a>`;
 
   // Список пилотов
   const list = [...pilots];
@@ -333,7 +348,7 @@ function renderPilots() {
     <div class="plist">${list.map(p => {
       const d = duelOf(p);
       return `<div class="prow ${isMe(p.tg) ? 'mine' : ''}" onclick="openPilot('${esc(p.num)}')">${avatar(p)}
-        <div class="pinfo"><div class="pname">${esc(p.name)}${isMe(p.tg) ? '<span class="you">это ты</span>' : ''}</div>
+        <div class="pinfo"><div class="pname">${esc(p.name)}${isMe(p.tg) ? '<span class="you">это ты</span>' : ''}${streakBadge(d)}</div>
           <div class="prole">${esc(p.role)}</div>${ready() ? progress(d.week, norm, true) : ''}</div>
         <div class="pcount ${ready() && d.week >= norm ? 'done' : ''}">${ready() ? d.week : '…'}<small>из ${norm}</small></div></div>`;
     }).join('')}</div>
@@ -343,10 +358,82 @@ function renderPilots() {
 
 function setSort(s) { pilotSort = s; renderPilots(); }
 
+// Серия: сколько недель подряд выполнена норма (значок — с двух недель)
+const streakBadge = d => d.streak >= 2 ? `<span class="streak">🔥 ${d.streak} нед.</span>` : '';
+// Пилот по нику в игре (награды и соперничества бот присылает с ником из таблицы)
+const pilotByName = n => pilotRows().find(p => p.name.toLowerCase() === String(n || '').toLowerCase());
+const openByName = n => { const p = pilotByName(n); if (p) openPilot(p.num); };
+const nameAttr = n => esc(JSON.stringify(String(n || '')));
+const short = n => String(n).replace(/\.0$/, '');
+
+// ---------- Рейтинги: награды недели, карты, соперничества — переключаются чипами, чтобы не всё сразу ----------
+let ratingTab = 'awards';
+function setRating(t) { ratingTab = t; renderRatings(); }
+
+function awardCards(aw, gold) {
+  const card = (ico, title, who, val, sub) => `<div class="awc ${gold ? 'gold' : ''}" onclick='openByName(${nameAttr(who)})'>
+    <div class="ico">${ico}</div><div class="t">${title}</div><div class="w">${esc(who)}</div>
+    <div class="v">${val}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+  const out = [];
+  if (aw.active) out.push(card('🔥', 'Самый активный', aw.active[0], aw.active[1] + ' дуэл.', ''));
+  if (aw.sniper) out.push(card('🎯', 'Снайпер', aw.sniper[0], aw.sniper[1] + '% побед', 'из ' + aw.sniper[2] + ' дуэлей'));
+  if (aw.record) out.push(card('🚀', 'Рекорд', aw.record[0], short(aw.record[1]), aw.record[2] ? esc(aw.record[2]) : ''));
+  if (aw.closest) out.push(card('⚔️', 'Дуэль недели', aw.closest[0] + ' vs ' + aw.closest[1],
+    short(aw.closest[2]) + ' / ' + short(aw.closest[3]), 'разница ' + short(aw.closest[4]) + (aw.closest[5] ? ' · ' + esc(aw.closest[5]) : '')));
+  return out.join('');
+}
+
+function renderRatings() {
+  const el = document.getElementById('ratings');
+  const chips = `<h2>Рейтинги</h2><div class="chips">${[['awards', 'Награды'], ['maps', 'Карты'], ['rivals', 'Соперничества']]
+    .map(([k, t]) => `<span class="chip ${ratingTab === k ? 'on' : ''}" onclick="setRating('${k}')">${t}</span>`).join('')}</div>`;
+  if (!ready()) {
+    el.innerHTML = chips + `<p class="note">${!duelData ? 'Загружаю данные от бота… Если бот спал, это займёт до минуты.' : 'Не удалось получить данные от бота. Нажми «обновить» через минуту.'}</p>`;
+    return;
+  }
+  let html = chips;
+  if (ratingTab === 'awards') {
+    const aw = (duelData.awards || {}), cur = awardCards(aw.week || {}, false), prev = aw.prev || {};
+    html += `<div class="label">Эта неделя · ${esc(duelData.week)} · пока</div>
+      ${cur ? `<div class="aw">${cur}</div>` : '<p class="note">На этой неделе ещё нет дуэлей в норму.</p>'}`;
+    const prevCards = awardCards(prev, true);
+    if (prevCards) html += `<div class="label">Победители прошлой недели · ${esc(duelData.prev_week)}</div><div class="aw">${prevCards}</div>`;
+    html += `<p class="note">Считаются только дуэли, которые идут в норму. «Снайпер» — от 10 дуэлей за неделю. «Дуэль недели» — самая близкая по счёту, где оба проехали больше 100 баллов.</p>`;
+  } else if (ratingTab === 'maps') {
+    const tr = duelData.tracks || {}, kings = tr.kings || {}, cls = ['p2', 'p1', 'p3'], place = ['2', '1', '3'];
+    // Логотип карты ставит владелец через бота (/maplogo); строка рейтинга: [название, дуэлей, версия логотипа, ключ]
+    const logo = (x, c) => x[2] ? `<img class="${c}" loading="lazy" alt="" src="${BOT_URL}/maplogo/${encodeURIComponent(x[3])}?v=${x[2]}" onerror="this.remove()">` : '';
+    const king = x => kings[x[3]] ? `<div class="mking">👑 ${esc(kings[x[3]][0])} · ${kings[x[3]][1]} поб.</div>` : '';
+    if (tr.week && tr.week.length) {
+      const top = tr.week.slice(0, 3), order = [top[1], top[0], top[2]];
+      html += `<div class="label">Карты недели</div><div class="podium">${order.map((x, i) => x ? `
+        <div class="pod">${logo(x, 'mlogo')}<div class="nm map">${esc(x[0])}</div><div class="cnt">${x[1]} дуэл.</div>
+          <div class="step ${cls[i]}">${place[i]}</div></div>` : '<div></div>').join('')}</div>`;
+    }
+    if (tr.all && tr.all.length) {
+      const max = tr.all[0][1] || 1;
+      html += `<div class="label">Самые играемые карты · за всё время</div><div class="card">${tr.all.map((x, i) => `
+        <div class="mrow"><span class="mi">${i + 1}</span>${logo(x, 'mthumb')}<div class="mn">${esc(x[0])}${king(x)}</div><span class="mc">${x[1]}</span></div>
+        <div class="bar thin"><i style="width:${Math.round(x[1] / max * 100)}%"></i></div>`).join('')}</div>
+        <p class="note">👑 Король карты — у кого больше всех побед на ней за последние 10 недель.</p>`;
+    }
+    if (!(tr.all && tr.all.length)) html += '<p class="note">Карт пока нет — они появятся, когда бот прочитает трассы со скринов дуэлей.</p>';
+  } else {
+    const rv = duelData.rivalries || [];
+    const side = n => { const p = pilotByName(n); return `<div class="side" onclick='openByName(${nameAttr(n)})'>${p ? avatar(p) : '<div class="av">?</div>'}<div class="nm">${esc(n)}</div></div>`; };
+    html += rv.length ? rv.map(r => `<div class="card" style="margin-bottom:8px"><div class="rv">${side(r[0])}
+        <div class="score">${r[2]} : ${r[3]}<small>${r[4]} дуэл.</small></div>${side(r[1])}</div>
+        <div class="split"><i style="width:${r[2] + r[3] ? Math.round(r[2] / (r[2] + r[3]) * 100) : 50}%"></i><i style="flex:1"></i></div></div>`).join('')
+        + '<p class="note">Пары пилотов клуба, которые чаще всего катают друг с другом, и личный счёт побед за последние 10 недель.</p>'
+      : '<p class="note">Пока нет дуэлей между пилотами клуба.</p>';
+  }
+  el.innerHTML = html;
+}
+
 function openPilot(numStr) {
   const p = pilotRows().find(x => x.num === numStr);
   if (!p) return;
-  const d = duelOf(p), pr = profOf(p), norm = normOf();
+  const d = duelOf(p), pr = profOf(p), norm = normOf(), st = ready() && d.stats;
   const mine = isMe(p.tg);
   document.getElementById('sheetBody').innerHTML = `<div class="grab"></div>
     ${avatar(p, 'big')}
@@ -356,7 +443,16 @@ function openPilot(numStr) {
     <div class="stats">
       <div class="stat"><span>Эта неделя</span><b>${ready() ? d.week : '…'}<small style="font-size:13px;color:var(--muted)"> / ${norm}</small></b>${ready() ? progress(d.week, norm, true) : ''}</div>
       <div class="stat"><span>Прошлая неделя</span><b>${ready() ? d.prev : '…'}</b></div>
+      ${st && st.n ? `
+      <div class="stat"><span>Победы</span><b>${Math.round(st.w / st.n * 100)}%</b><span>${st.w} из ${st.n}</span></div>
+      <div class="stat"><span>Лучший счёт</span><b>${short(st.best)}</b></div>
+      <div class="stat"><span>Любимая карта</span><b style="font-size:15px">${esc(st.map || '—')}</b></div>
+      <div class="stat"><span>Серия нормы</span><b>${d.streak ? '🔥 ' + d.streak : '0'}</b><span>недель подряд</span></div>` : ''}
     </div>
+    ${st && st.rivals && st.rivals.length ? `<div class="label">Чаще всего катает с</div><div class="card">${st.rivals.map(r => `
+      <div class="rivrow" onclick='openByName(${nameAttr(r[0])})'><span class="n">${esc(r[0])}</span><span class="note" style="margin:0">${r[1]} дуэл.</span>
+        <span class="c">${r[2]} : ${r[3]}</span></div>`).join('')}</div>` : ''}
+    ${st && st.n ? '<p class="note">Статистика по дуэлям в норму за последние 10 недель.</p>' : ''}
     ${mine ? `<a class="btn" href="${BOT_PROFILE_LINK}">${pr.photo ? 'Изменить профиль в боте' : 'Поставить фото машины'}</a>
       <p class="note" style="text-align:center">Машина на фото — обязательно в ливрее клуба</p>` : ''}
     <a class="btn ghost" href="#" onclick="closeSheet();return false">Закрыть</a>`;
