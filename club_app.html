@@ -113,6 +113,24 @@ h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;lett
 .likebtn{flex:none;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:var(--card2);color:var(--text);font-size:15px;cursor:pointer}
 .likebtn.on{background:var(--accent-soft);border-color:#6a2a1e;color:#ffb3a3}
 .btn.order{margin:0 0 10px}
+/* турниры */
+.tcard{margin-top:12px}
+.tt{font-family:var(--race);font-size:18px}
+.tstate{font-size:13px;font-weight:600;margin:4px 0 8px}
+.tstate.live{color:var(--ok)}
+.tplayers{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+.places{display:flex;flex-direction:column;gap:4px;font-size:15px;margin-bottom:6px}
+.bracket{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.bcol{flex:none;width:150px;display:flex;flex-direction:column;justify-content:space-around;gap:8px}
+.bt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm{background:var(--card2);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px}
+.tm.live{border-color:var(--ok)}
+.tm-r{display:flex;justify-content:space-between;gap:6px;padding:6px 8px;color:var(--muted)}
+.tm-r+.tm-r{border-top:1px solid var(--line)}
+.tm-r span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm-r.win{color:var(--text);font-weight:600}
+.tm-r b{font-family:var(--race);font-weight:400}
+.tm-n{font-size:11px;color:var(--muted);padding:0 8px 6px}
 .sheet a:not(.btn){color:#ffb3a3}
 /* аватар: фото машины или гоночный номер */
 .av{position:relative;width:64px;height:46px;border-radius:10px;background:var(--card2);overflow:hidden;flex:none;
@@ -189,6 +207,7 @@ nav button.active{color:var(--accent)}
   <section id="pilots"></section>
   <section id="ratings"></section>
   <section id="workshop"></section>
+  <section id="uts"></section>
   <section id="schedule"></section>
   <section id="rules"></section>
   <section id="summary"></section>
@@ -211,7 +230,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-12d';
+const APP_VERSION = '2026-11-12e';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -289,13 +308,14 @@ async function loadDuels() {
     duelData = await r.json();
     if (!duelData.pilots) duelData = { error: true };
   } catch (e) { duelData = { error: true }; }
-  if (data) { renderPilots(); renderRatings(); renderWorkshop(); setStatus(); }
+  if (data) { renderPilots(); renderRatings(); renderWorkshop(); renderUts(); setStatus(); }
 }
 
 function renderAll() {
   renderPilots();
   renderRatings();
   renderWorkshop();
+  renderUts();
   renderSchedule();
   renderRules();
   renderSummary();
@@ -365,6 +385,10 @@ function renderPilots() {
   if (designers().length) {
     const n = designers().reduce((s, x) => s + x.items.length, 0);
     html += `<a class="btn ghost" href="#" onclick="openWorkshop('');return false">🎨 Мастерская ливрей${n ? ' · ' + n : ''}</a>`;
+  }
+  if (ready()) {
+    const live = utsData().active.filter(t => t.state !== 'done').length;
+    html += `<a class="btn ghost" href="#" onclick="openUts();return false">🏁 Турниры${live ? ' · идёт запись или игра: ' + live : ''}</a>`;
   }
 
   // Список пилотов
@@ -477,6 +501,7 @@ function openPilot(numStr) {
     <div class="stats">
       <div class="stat"><span>Эта неделя</span><b>${ready() ? d.week : '…'}<small style="font-size:13px;color:var(--muted)"> / ${norm}</small></b>${ready() ? progress(d.week, norm, true) : ''}</div>
       <div class="stat"><span>Прошлая неделя</span><b>${ready() ? d.prev : '…'}</b></div>
+      ${trophiesOf(p) ? `<div class="stat" style="grid-column:1/-1"><span>Турниры (мини-УТС)</span><b style="font-size:18px">🏆 ${trophiesOf(p)[0]} · 🥈 ${trophiesOf(p)[1]} · 🥉 ${trophiesOf(p)[2]}</b></div>` : ''}
       ${st && st.n ? `
       <div class="stat"><span>Победы</span><b>${Math.round(st.w / st.n * 100)}%</b><span>${st.w} из ${st.n}</span></div>
       <div class="stat"><span>Лучший счёт</span><b>${short(st.best)}</b></div>
@@ -584,6 +609,80 @@ async function likeLivery(id) {
     alert('Не получилось поставить 🔥: ' + e.message);
   }
   btn.disabled = false;
+}
+
+// ---------- Турниры (мини-УТС): создаются и идут через бота, здесь — запись, сетка и история ----------
+const utsData = () => (ready() && duelData.uts) || { active: [], hist: [], trophies: {} };
+const trophiesOf = p => utsData().trophies[tgKey(p.tg)] || utsData().trophies[p.name] || null;
+function openUts() { renderUts(); show('uts'); }
+function utsWho(x) { return x ? esc(x.name) : ''; }
+function utsMatch(m) {
+  const row = (x, s, win) => `<div class="tm-r ${win ? 'win' : ''}"><span>${x ? utsWho(x) : (m.done ? '—' : '…')}</span>${x && (m.bo > 1 || m.done) ? `<b>${m.bo > 1 ? s : (win ? '✓' : '')}</b>` : ''}</div>`;
+  const wa = m.done && m.w && m.a && m.w.name === m.a.name, wb = m.done && m.w && m.b && m.w.name === m.b.name;
+  return `<div class="tm ${m.open && !m.done ? 'live' : ''}">${row(m.a, m.sa, wa)}${row(m.b, m.sb, wb)}
+    ${m.bye ? '<div class="tm-n">автопроход</div>' : m.open && !m.done ? `<div class="tm-n">идёт${m.track ? ' · ' + esc(m.track) : ''}</div>` : ''}</div>`;
+}
+function utsBracket(t) {
+  // Колонки по раундам: верхняя сетка, нижняя, финалы; «каждый с каждым» — таблица
+  const groups = { U: {}, L: {} }, fin = [];
+  for (const m of t.matches) {
+    const g = m.id.match(/^([UL])(\d+)-/);
+    if (g) (groups[g[1]][g[2]] = groups[g[1]][g[2]] || []).push(m);
+    else if (!m.id.startsWith('R')) fin.push(m);
+  }
+  const cols = (obj, title) => Object.keys(obj).length ? `<div class="label">${title}</div><div class="bracket">${Object.keys(obj).sort((a, b) => a - b).map((r, i, all) =>
+    `<div class="bcol"><div class="bt">${esc(obj[r][0].name === "Нижняя сетка" ? "Раунд " + (i + 1) : obj[r][0].name.replace(" (верхняя сетка)", "").replace(" верхней сетки", ""))}</div>${obj[r].map(utsMatch).join('')}</div>`).join('')}</div>` : '';
+  let html = '';
+  if (t.table) html += `<div class="label">Каждый с каждым</div><div class="card">${t.table.map((r, i) =>
+    `<div class="mrow"><span class="mi">${i + 1}</span><span class="mn">${esc(r[0])}</span><span class="note" style="margin:0">±${r[2]}</span><span class="mc">${r[1]}</span></div>`).join('')}</div>`;
+  html += cols(groups.U, Object.keys(groups.L).length ? 'Верхняя сетка' : 'Сетка') + cols(groups.L, 'Нижняя сетка');
+  if (fin.length) html += `<div class="label">Финалы</div><div class="bracket">${fin.map(m => `<div class="bcol"><div class="bt">${esc(m.name)}${m.bo > 1 ? ' · до ' + (m.bo + 1) / 2 : ''}</div>${utsMatch(m)}</div>`).join('')}</div>`;
+  return html;
+}
+function utsCard(t) {
+  const fmt = `Топ-${t.size} · ${t.de ? 'с лузер-сеткой' : 'на вылет'} · финал до ${(t.bo + 1) / 2} побед`;
+  const track = t.track || (t.track_mode === 'each' ? 'новая на каждый матч' : 'любая');
+  const hm = ts => new Date(ts * 1000).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
+  let html = `<div class="card tcard"><div class="tt">${esc(t.title)}</div><div class="note" style="margin:2px 0 8px">${fmt}<br>Трасса: ${esc(track)} · организатор ${esc(t.by)}</div>`;
+  if (t.state === 'reg') {
+    const mine = t.players.concat(t.reserve).some(x => x && x.tg && x.tg === myUsername);
+    html += `<div class="tstate">📝 Запись · ${t.players.length}/${t.size} · старт ${t.start ? 'в ' + hm(t.start) + ' МСК' : 'как наберёмся (до ' + hm(t.deadline) + ' МСК)'}</div>
+      <div class="tplayers">${t.players.map((x, i) => `<span>${i + 1}. ${utsWho(x)}</span>`).join('') || '<span class="note">пока никого</span>'}</div>
+      ${t.reserve.length ? `<div class="note">Запасные: ${t.reserve.map(utsWho).join(', ')}</div>` : ''}
+      <a class="btn ${mine ? 'ghost' : ''}" href="#" onclick="utsAct('${esc(t.id)}','${mine ? 'leave' : 'join'}');return false">${mine ? '🚪 Выйти' : '✋ Участвую'}</a>`;
+  } else {
+    if (t.state === 'done') html += `<div class="tstate">🏆 Завершён</div><div class="places">${t.places.map((x, i) => `<span>${['🥇', '🥈', '🥉'][i]} ${utsWho(x)}</span>`).join('')}</div>`;
+    else html += `<div class="tstate live">▶️ Идёт · скрины матчей — в тему отчётов</div>`;
+    html += utsBracket(t);
+  }
+  return html + '</div>';
+}
+function renderUts() {
+  const el = document.getElementById('uts');
+  const u = utsData();
+  let html = `<a class="back" href="#" onclick="show('pilots');return false">← Пилоты</a><h2>Турниры</h2>
+    <p class="note">Мини-УТС без судей: создаёшь турнир, люди жмут «Участвую», бот сам строит сетку, зовёт пары и определяет победителя по баллам со скрина. Дуэли идут и в норму.</p>
+    <a class="btn" href="#" onclick="openTg('${BOT_LINK}?start=uts');return false">➕ Создать турнир</a>`;
+  if (!ready()) { el.innerHTML = html + '<p class="note">Загружаю данные от бота…</p>'; return; }
+  html += u.active.length ? u.active.map(utsCard).join('') : '<p class="note" style="margin-top:16px">Сейчас турниров нет — создай первый!</p>';
+  const fame = Object.entries(u.trophies).sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1] || b[1][2] - a[1][2]).slice(0, 10);
+  if (fame.length) html += `<div class="label">Зал славы</div><div class="card">${fame.map(([k, v], i) => {
+    const p = pilotRows().find(r => tgKey(r.tg) === k);
+    return `<div class="mrow"><span class="mi">${i + 1}</span><span class="mn">${esc(p ? p.name : (v[3] || k))}</span><span>🏆 ${v[0]} · 🥈 ${v[1]} · 🥉 ${v[2]}</span></div>`;
+  }).join('')}</div>`;
+  if (u.hist.length) html += `<div class="label">Прошедшие турниры</div><div class="card">${u.hist.map(h =>
+    `<div class="mrow"><span class="mn">${esc(h.title)}<div class="prole">${new Date(h.d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })} · ${h.n} участн.</div></span><span>🥇 ${esc(h.places[0] || '—')}</span></div>`).join('')}</div>`;
+  el.innerHTML = html;
+}
+async function utsAct(id, act) {
+  if (!TG || !TG.initData) { alert('Записаться можно, когда приложение открыто в Телеграме (или кнопкой «Участвую» в чате).'); return; }
+  try {
+    const r = await fetch(BOT_URL + '/api/uts', { method: 'POST', body: JSON.stringify({ init: TG.initData, id, act }) });
+    const res = await r.json();
+    alert(res.ok ? res.text : 'Не получилось: ' + res.error);
+  } catch (e) { alert('Не получилось: ' + e.message); }
+  await loadDuels();
+  renderUts();
 }
 
 // ---------- Неделя (расписание) ----------
