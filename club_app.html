@@ -230,7 +230,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-12e';
+const APP_VERSION = '2026-11-13a';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -308,7 +308,7 @@ async function loadDuels() {
     duelData = await r.json();
     if (!duelData.pilots) duelData = { error: true };
   } catch (e) { duelData = { error: true }; }
-  if (data) { renderPilots(); renderRatings(); renderWorkshop(); renderUts(); setStatus(); }
+  if (data) { renderPilots(); renderRatings(); renderWorkshop(); renderUts(); renderSummary(); setStatus(); }
 }
 
 function renderAll() {
@@ -730,13 +730,35 @@ function renderRules() {
 }
 
 // ---------- Сводка ----------
+// Цифры считаются по дуэлям, которые бот засчитал по скринам (лист таблицы «Сводка» давно не обновляется)
 function renderSummary() {
-  const rows = data.summary.filter(r => r[0] && r[1] && r[0] !== 'Показатель' && r[0] !== 'Примечание');
-  const note = data.summary.find(r => cells(r).length === 1 && r[0].length > 40);
-  document.getElementById('summary').innerHTML =
-    `<h2>Сводка по пилотам</h2>
-     <div class="kv">${rows.map(r => `<div><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div>
-     ${note ? `<p class="note">${esc(note[0])}</p>` : ''}`;
+  const el = document.getElementById('summary');
+  const pilots = pilotRows();
+  if (!ready()) {
+    el.innerHTML = `<h2>Сводка по пилотам</h2><p class="note">${!duelData ? 'Загружаю дуэли от бота… Если бот спал, это займёт до минуты.' : 'Не удалось получить дуэли от бота. Нажми «обновить» через минуту.'}</p>`;
+    return;
+  }
+  const norm = normOf(), ds = pilots.map(duelOf), n = pilots.length || 1;
+  const sum = f => ds.reduce((s, d) => s + (f(d) || 0), 0);
+  const kv = items => `<div class="kv">${items.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>`;
+  const avg = x => (Math.round(x / n * 10) / 10).toString().replace('.', ',');
+  const week = sum(d => d.week), prev = sum(d => d.prev);
+  const done = ds.filter(d => d.week >= norm).length, prevDone = ds.filter(d => d.prev >= norm).length;
+  const left = sum(d => Math.max(0, norm - d.week));
+  const counted = sum(d => d.stats && d.stats.n), streaks = ds.filter(d => d.streak >= 2).length;
+  const top = (duelData.tracks && duelData.tracks.all || [])[0];
+  const live = ((duelData.uts || {}).active || []).filter(t => t.state !== 'done').length;
+  el.innerHTML = `<h2>Сводка по пилотам</h2>
+    <div class="label">Эта неделя · ${esc(duelData.week)} · норма ${norm}</div>
+    ${kv([['Засчитано в норму', week], ['Выполнили норму', `${done}<small style="font-size:14px;color:var(--muted)"> из ${pilots.length}</small>`],
+          ['В среднем на пилота', avg(week)], ['Осталось клубу до нормы', left]])}
+    <div class="label">Прошлая неделя · ${esc(duelData.prev_week)}</div>
+    ${kv([['Засчитано в норму', prev], ['Выполнили норму', `${prevDone}<small style="font-size:14px;color:var(--muted)"> из ${pilots.length}</small>`]])}
+    <div class="label">Клуб · последние 10 недель</div>
+    ${kv([['Пилотов в таблице', pilots.length], ['Засчитано в норму', counted], ['Серия нормы 2+ недели', streaks],
+          ['Идёт турниров', live]])}
+    ${top ? `<div class="kv" style="grid-template-columns:1fr;margin-top:8px"><div><span>Самая популярная карта</span><b style="font-size:20px">${esc(top[0])}</b></div></div>` : ''}
+    <p class="note">Всё считается по скринам «История заездов», которые бот засчитал в норму (не меньше 100.1 балла и соперник из клуба). Дуэль двух пилотов клуба идёт в норму обоим, поэтому считается у каждого. Обновляется само.</p>`;
 }
 
 function show(name) {
