@@ -100,7 +100,19 @@ h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;lett
 .lvt{font-size:13px;font-weight:600;padding:8px 10px 0;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .lvs{font-size:12px;color:var(--muted);padding:2px 10px 0}
 .lv .lvt:last-child,.lv .lvs:last-child{padding-bottom:10px}
-.lvbig{width:100%;border-radius:12px;display:block;background:var(--card2);min-height:120px}
+.lvbig{width:100%;border-radius:12px;display:block;background:var(--card2);min-height:120px;flex:none;scroll-snap-align:center}
+.lvimg{position:relative}
+.lvn,.lvl{position:absolute;top:6px;font-size:11px;padding:3px 6px;border-radius:8px;background:rgba(0,0,0,.65);color:#fff}
+.lvn{left:6px}
+.lvl{right:6px}
+.lvl.on{background:var(--accent)}
+.lvgal{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.lvgal::-webkit-scrollbar{display:none}
+.lvhead{display:flex;align-items:center;gap:10px;margin-top:12px}
+.lvhead h3{margin:0}
+.likebtn{flex:none;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:var(--card2);color:var(--text);font-size:15px;cursor:pointer}
+.likebtn.on{background:var(--accent-soft);border-color:#6a2a1e;color:#ffb3a3}
+.btn.order{margin:0 0 10px}
 .sheet a:not(.btn){color:#ffb3a3}
 /* аватар: фото машины или гоночный номер */
 .av{position:relative;width:64px;height:46px;border-radius:10px;background:var(--card2);overflow:hidden;flex:none;
@@ -199,7 +211,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-12c';
+const APP_VERSION = '2026-11-12d';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -487,46 +499,91 @@ function closeSheet() { document.getElementById('sheet').classList.remove('open'
 
 // ---------- Мастерская ливрей: портфолио ливрейщиков (ливреи они загружают через бота, /livery) ----------
 const designers = () => (ready() && duelData.designers) || [];
-const lvImg = id => `${BOT_URL}/livery/${encodeURIComponent(id)}`;
-let workshopFilter = '';
+// Фото ливреи: первое — /livery/<id>, остальные — /livery/<id>-<номер>
+const lvImg = (id, k) => `${BOT_URL}/livery/${encodeURIComponent(id)}${k ? '-' + k : ''}`;
+const BOT_LINK = 'https://t.me/Khin_raci_bot';
+let workshopFilter = '', lvSort = 'new';
 // 1 ливрея, 2 ливреи, 5 ливрей
 const plural = (n, one, few, many) => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
+// Свои лайки помним в браузере, чтобы подсвечивать «огонёк» (сам лайк хранит бот)
+function myLikes() { try { return new Set(JSON.parse(localStorage.getItem('khr_likes') || '[]')); } catch (e) { return new Set(); } }
+function saveLikes(s) { try { localStorage.setItem('khr_likes', JSON.stringify([...s])); } catch (e) {} }
 function lvCard(it) {
-  return `<div class="lv" onclick="openLivery('${esc(it.id)}')"><div class="lvimg"><img loading="lazy" alt="" src="${lvImg(it.id)}" onerror="this.remove()"></div>
+  const liked = myLikes().has(String(it.id));
+  return `<div class="lv" onclick="openLivery('${esc(it.id)}')"><div class="lvimg"><img loading="lazy" alt="" src="${lvImg(it.id)}" onerror="this.remove()">
+      ${it.n > 1 ? `<span class="lvn">📷 ${it.n}</span>` : ''}${it.likes ? `<span class="lvl ${liked ? 'on' : ''}">🔥 ${it.likes}</span>` : ''}</div>
     <div class="lvt">${esc(it.t || 'Без названия')}</div>${it.for ? `<div class="lvs">для ${esc(it.for)}</div>` : ''}</div>`;
 }
+function openTg(url) {
+  if (TG && TG.openTelegramLink) { try { TG.openTelegramLink(url); return; } catch (e) {} }
+  window.open(url, '_blank');
+}
 function openWorkshop(tg) { workshopFilter = tg || ''; renderWorkshop(); show('workshop'); }
+function setLvSort(s) { lvSort = s; renderWorkshop(); }
 function renderWorkshop() {
   const el = document.getElementById('workshop');
   const des = designers();
   const total = des.reduce((n, x) => n + x.items.length, 0);
   let html = `<a class="back" href="#" onclick="show('pilots');return false">← Пилоты</a><h2>Мастерская ливрей</h2>
-    <p class="note">Работы ливрейщиков клуба: ${plural(total, 'ливрея', 'ливреи', 'ливрей')}. Нажми на ливрею, чтобы открыть её целиком.</p>`;
+    <p class="note">Работы ливрейщиков клуба: ${plural(total, 'ливрея', 'ливреи', 'ливрей')}. Нажми на ливрею, чтобы открыть её целиком и поставить 🔥.</p>`;
   if (!ready()) { el.innerHTML = html + '<p class="note">Загружаю данные от бота…</p>'; return; }
   if (!des.length) { el.innerHTML = html + '<p class="note">Пока нет ни одного ливрейщика. Их назначает владелец клуба командой /designer @ник.</p>'; return; }
   if (des.length > 1) html += `<div class="chips" style="flex-wrap:wrap"><span class="chip ${!workshopFilter ? 'on' : ''}" onclick="openWorkshop('')">Все</span>${des.map(x =>
     `<span class="chip ${workshopFilter === x.tg ? 'on' : ''}" onclick="openWorkshop('${esc(x.tg)}')">${esc(x.name)}</span>`).join('')}</div>`;
+  if (total > 1) html += `<div class="chips"><span class="chip ${lvSort === 'new' ? 'on' : ''}" onclick="setLvSort('new')">Новые</span>
+    <span class="chip ${lvSort === 'top' ? 'on' : ''}" onclick="setLvSort('top')">🔥 Популярные</span></div>`;
   for (const x of des.filter(x => !workshopFilter || x.tg === workshopFilter)) {
     const p = pilotRows().find(r => tgKey(r.tg) === x.tg);
+    const items = lvSort === 'top' ? [...x.items].sort((a, b) => (b.likes || 0) - (a.likes || 0)) : x.items;
     html += `<div class="dhead" ${p ? `onclick="openPilot('${esc(p.num)}')"` : ''}>${p ? avatar(p) : '<div class="av">🎨</div>'}
       <div style="flex:1;min-width:0"><div class="pname">${esc(x.name)}</div><div class="prole">Ливрейщик · ${plural(x.items.length, 'работа', 'работы', 'работ')}</div></div></div>
-      ${x.items.length ? `<div class="lvgrid">${x.items.map(lvCard).join('')}</div>` : '<p class="note">Пока пусто — работы появятся, когда ливрейщик загрузит их через бота.</p>'}`;
+      ${x.tg && x.tg !== myUsername ? `<a class="btn ghost order" href="#" onclick="openTg('${BOT_LINK}?start=order_${esc(x.tg)}');return false">🎨 Заказать ливрею у ${esc(x.name)}</a>` : ''}
+      ${items.length ? `<div class="lvgrid">${items.map(lvCard).join('')}</div>` : '<p class="note">Пока пусто — работы появятся, когда ливрейщик загрузит их через бота.</p>'}`;
   }
   el.innerHTML = html;
 }
+function findLivery(id) {
+  for (const x of designers()) { const f = x.items.find(i => String(i.id) === String(id)); if (f) return [f, x]; }
+  return [null, null];
+}
 function openLivery(id) {
-  let it = null, by = null;
-  for (const x of designers()) { const f = x.items.find(i => String(i.id) === String(id)); if (f) { it = f; by = x; break; } }
+  const [it, by] = findLivery(id);
   if (!it) return;
   const d = it.d ? new Date(it.d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const n = Math.max(1, it.n || 1), liked = myLikes().has(String(it.id));
   document.getElementById('sheetBody').innerHTML = `<div class="grab"></div>
-    <img class="lvbig" alt="" src="${lvImg(it.id)}">
-    <h3 style="font-size:18px">${esc(it.t || 'Без названия')}</h3>
+    <div class="lvgal">${Array.from({ length: n }, (_, k) => `<img class="lvbig" alt="" src="${lvImg(it.id, k)}">`).join('')}</div>
+    ${n > 1 ? `<div class="note" style="text-align:center;margin:6px 0 0">Листай вбок · ${n} фото</div>` : ''}
+    <div class="lvhead"><h3 style="font-size:18px;flex:1;min-width:0">${esc(it.t || 'Без названия')}</h3>
+      <button class="likebtn ${liked ? 'on' : ''}" id="likeBtn" onclick="likeLivery('${esc(it.id)}')">🔥 ${it.likes || 0}</button></div>
     <div class="sub">Автор: <a href="#" onclick='openByName(${nameAttr(by.name)});return false'>${esc(by.name)}</a>${d ? ' · ' + d : ''}</div>
     ${it.for ? `<div class="about">Для пилота: <a href="#" onclick='openByName(${nameAttr(it.for)});return false'>${esc(it.for)}</a></div>` : ''}
+    ${by.tg && by.tg !== myUsername ? `<a class="btn" href="#" onclick="openTg('${BOT_LINK}?start=order_${esc(by.tg)}');return false">🎨 Заказать ливрею у ${esc(by.name)}</a>` : ''}
     <a class="btn ghost" href="#" onclick="closeSheet();openWorkshop('${esc(by.tg)}');return false">Все работы ${esc(by.name)}</a>
     <a class="btn ghost" href="#" onclick="closeSheet();return false">Закрыть</a>`;
   document.getElementById('sheet').classList.add('open');
+}
+async function likeLivery(id) {
+  const btn = document.getElementById('likeBtn');
+  if (!TG || !TG.initData) { alert('Ставить 🔥 можно, когда приложение открыто в Телеграме.'); return; }
+  btn.disabled = true;
+  try {
+    // Телеграм подписывает initData — бот проверяет подпись, поэтому лайк нельзя подделать
+    const r = await fetch(BOT_URL + '/api/like', { method: 'POST', body: JSON.stringify({ init: TG.initData, id }) });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error || 'не получилось');
+    const [it] = findLivery(id), mine = myLikes();
+    if (it) it.likes = res.n;
+    res.liked ? mine.add(String(id)) : mine.delete(String(id));
+    saveLikes(mine);
+    btn.textContent = '🔥 ' + res.n;
+    btn.classList.toggle('on', res.liked);
+    if (TG.HapticFeedback) try { TG.HapticFeedback.impactOccurred('light'); } catch (e) {}
+    renderWorkshop();
+  } catch (e) {
+    alert('Не получилось поставить 🔥: ' + e.message);
+  }
+  btn.disabled = false;
 }
 
 // ---------- Неделя (расписание) ----------
