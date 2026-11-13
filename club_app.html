@@ -238,7 +238,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-14a';
+const APP_VERSION = '2026-11-14b';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -394,7 +394,7 @@ function renderPilots() {
     }
   }
 
-  if (ready()) html += `<a class="btn ghost" href="#" onclick="show('ratings');return false">🏆 Награды, рейтинг Эло, карты и соперничества</a>`;
+  if (ready()) html += `<a class="btn ghost" href="#" onclick="show('ratings');return false">🏆 Рейтинг Эло, награды, карты и соперничества</a>`;
   if (designers().length) {
     const n = designers().reduce((s, x) => s + x.items.length, 0);
     html += `<a class="btn ghost" href="#" onclick="openWorkshop('');return false">🎨 Мастерская ливрей${n ? ' · ' + n : ''}</a>`;
@@ -459,7 +459,7 @@ const nameAttr = n => esc(JSON.stringify(String(n || '')));
 const short = n => String(n).replace(/\.0$/, '');
 
 // ---------- Рейтинги: награды недели, карты, соперничества — переключаются чипами, чтобы не всё сразу ----------
-let ratingTab = 'awards';
+let ratingTab = 'elo';
 function setRating(t) { ratingTab = t; renderRatings(); }
 
 function awardCards(aw, gold) {
@@ -477,7 +477,7 @@ function awardCards(aw, gold) {
 
 function renderRatings() {
   const el = document.getElementById('ratings');
-  const chips = `<h2>Рейтинги</h2><div class="chips">${[['awards', 'Награды'], ['elo', 'Эло'], ['maps', 'Карты'], ['rivals', 'Соперничества']]
+  const chips = `<h2>Рейтинги</h2><div class="chips">${[['elo', 'Эло'], ['awards', 'Награды'], ['maps', 'Карты'], ['rivals', 'Соперничества']]
     .map(([k, t]) => `<span class="chip ${ratingTab === k ? 'on' : ''}" onclick="setRating('${k}')">${t}</span>`).join('')}</div>`;
   if (!ready()) {
     el.innerHTML = chips + `<p class="note">${!duelData ? 'Загружаю данные от бота… Если бот спал, это займёт до минуты.' : 'Не удалось получить данные от бота. Нажми «обновить» через минуту.'}</p>`;
