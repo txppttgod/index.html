@@ -147,6 +147,15 @@ h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;lett
 .teams .card{margin:0}
 .tscore{font-family:var(--race);font-size:21px;white-space:nowrap;text-align:center;margin:6px 0 10px}
 .goal{margin-top:10px;font-size:13px}
+.shot{color:#ffb3a3;text-decoration:none;margin-left:6px;white-space:nowrap}
+.mapst{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0}
+.mapst .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mapst .b{width:70px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;flex:none}
+.mapst .b i{display:block;height:100%;background:var(--ok)}
+.mapst .p{width:64px;text-align:right;color:var(--muted);flex:none}
+.adm .mrow{font-size:13px}
+.adm .bad{color:var(--accent)}
+.adm button{background:none;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer}
 /* аватар: фото машины или гоночный номер */
 .av{position:relative;width:64px;height:46px;border-radius:10px;background:var(--card2);overflow:hidden;flex:none;
   display:flex;align-items:center;justify-content:center;font-family:var(--race);font-size:17px;color:var(--text)}
@@ -223,6 +232,7 @@ nav button.active{color:var(--accent)}
   <section id="ratings"></section>
   <section id="workshop"></section>
   <section id="uts"></section>
+  <section id="admin"></section>
   <section id="schedule"></section>
   <section id="rules"></section>
   <section id="summary"></section>
@@ -245,7 +255,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-14c';
+const APP_VERSION = '2026-11-14d';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -403,6 +413,7 @@ function renderPilots() {
     }
   }
 
+  if (adminData) html += `<a class="btn ghost" href="#" onclick="renderAdmin();show('admin');return false">🛡 Админ-панель</a>`;
   if (ready()) html += `<a class="btn ghost" href="#" onclick="show('ratings');return false">🏆 Рейтинг Эло, награды, карты и соперничества</a>`;
   if (ready() && duelData.teams) {
     const t = duelData.teams;
@@ -460,6 +471,20 @@ function eloSpark(p) {
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline fill="none" stroke="${up ? 'var(--ok)' : 'var(--accent)'}" stroke-width="2.5" stroke-linejoin="round" points="${xy.map(x => x.join(',')).join(' ')}"/>
     ${xy.map(x => `<circle cx="${x[0]}" cy="${x[1]}" r="2.5" fill="currentColor"/>`).join('')}</svg><span>последние ${pts.length} нед.: ${vals[0]} → ${vals[vals.length - 1]}</span>`;
 }
+// Ссылка на сообщение со скрином в теме отчётов (есть у дуэлей, сданных после обновления)
+const shotLink = m => m && ready() && duelData.shot_base ? `<a class="shot" href="#" onclick="event.stopPropagation();openTg('${duelData.shot_base}${m}');return false">📸 скрин</a>` : '';
+const resRu = { win: 'победа', loss: 'поражение', draw: 'ничья' };
+function mapStats(st) {
+  if (!st || !st.maps || !st.maps.length) return '';
+  return `<div class="label">По картам</div><div class="card">${st.maps.map(m => `<div class="mapst"><span class="n">${esc(m[0])}</span>
+    <span class="b"><i style="width:${Math.round(m[2] / m[1] * 100)}%"></i></span><span class="p">${Math.round(m[2] / m[1] * 100)}% · ${m[1]}</span></div>`).join('')}
+    <p class="note" style="margin:6px 0 0">Процент побед и сколько дуэлей на карте (в норму, за 10 недель).</p></div>`;
+}
+function recentDuels(st) {
+  if (!st || !st.recent || !st.recent.length) return '';
+  return `<div class="label">Последние дуэли</div><div class="card">${st.recent.map(x => `<div class="h2h"><span>${new Date(x[0]).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · vs ${esc(x[1])} · ${resRu[x[2]] || x[2]}</span>
+    <span>${esc(x[3])}${shotLink(x[5])}</span></div>`).join('')}</div>`;
+}
 // Личные встречи: ты против этого пилота (по твоей статистике)
 function h2hBlock(p) {
   if (!ready() || isMe(p.tg)) return '';
@@ -468,8 +493,42 @@ function h2hBlock(p) {
   if (!v) return '';
   const res = { win: 'победа', loss: 'поражение', draw: 'ничья' };
   return `<div class="label">Ты против ${esc(p.name)}</div><div class="card"><div class="tscore" style="margin:0 0 6px">${v[1]} : ${v[2]}</div>
-    ${v[3].map(x => `<div class="h2h"><span>${new Date(x[0]).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · ${res[x[1]] || x[1]}</span><span>${esc(x[2])}${x[3] ? ' · ' + esc(x[3]) : ''}</span></div>`).join('')}
+    ${v[3].map(x => `<div class="h2h"><span>${new Date(x[0]).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · ${res[x[1]] || x[1]}</span><span>${esc(x[2])}${x[3] ? ' · ' + esc(x[3]) : ''}${shotLink(x[4])}</span></div>`).join('')}
     <p class="note" style="margin:6px 0 0">${v[0]} дуэл. за 10 недель, показаны последние ${v[3].length}</p></div>`;
+}
+// ---------- Админ-панель: видна только администраторам клуба (бот проверяет по подписи Телеграма) ----------
+let adminData = null;
+async function adminCall(body) {
+  const r = await fetch(BOT_URL + '/api/admin', { method: 'POST', body: JSON.stringify(Object.assign({ init: TG.initData }, body)) });
+  return r.json();
+}
+async function loadAdmin() {
+  if (!TG || !TG.initData) return;
+  try { const res = await adminCall({ act: 'get' }); adminData = res.ok ? res.data : null; } catch (e) { adminData = null; }
+  if (adminData) { if (data) renderPilots(); renderAdmin(); }
+}
+function renderAdmin() {
+  const el = document.getElementById('admin');
+  if (!adminData) { el.innerHTML = ''; return; }
+  const a = adminData, base = a.shot_base;
+  const link = m => m && base ? `<a class="shot" href="#" onclick="openTg('${base}${m}');return false">📸</a>` : '';
+  let html = `<a class="back" href="#" onclick="show('pilots');return false">← Пилоты</a><h2>Админ-панель</h2>
+    <a class="btn ghost" href="#" onclick="loadAdmin();return false">🔄 Обновить</a>
+    <div class="label">Норма этой недели · ${a.norm}</div><div class="card adm">${a.people.map(x => `<div class="mrow">
+      <span class="mn">${esc(x.name)}${x.tg ? ' <span class="note" style="margin:0">@' + esc(x.tg) + '</span>' : ''}<div class="prole">прошлая: ${x.prev} · последняя дуэль: ${x.last ? new Date(x.last).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '—'}</div></span>
+      <span class="mc ${x.week < a.norm ? 'bad' : ''}">${x.week}</span></div>`).join('')}</div>`;
+  if (a.unknown.length) html += `<div class="label">Бот не находит в чате</div><div class="card adm"><p class="note" style="margin:0">Их @ника из таблицы нет среди участников чата — дуэли им не засчитываются. Проверь ник в таблице: ${a.unknown.map(esc).join(', ')}</p></div>`;
+  html += `<div class="label">🚩 Подозрения на накрутку</div><div class="card adm">${a.alerts.length ? a.alerts.map(x => `<div class="mrow"><span class="mn">${esc(x.who)} и ${esc(x.other)}<div class="prole">${esc(x.d)} · vs ${esc(x.opp)} · совпало ${x.n}</div></span>
+      ${x.link ? `<a class="shot" href="#" onclick="openTg('${esc(x.link)}');return false">📸</a>` : ''}<button onclick="adminUndo(${x.uid}, ${esc(JSON.stringify(String(x.g)))})">Отменить</button></div>`).join('') : '<p class="note" style="margin:0">Пока нет.</p>'}</div>`;
+  html += `<div class="label">Последние отчёты</div><div class="card adm">${a.reports.map(x => `<div class="mrow"><span class="mn">${esc(x.who)} · vs ${esc(x.o)}<div class="prole">${new Date(x.d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · дуэлей: ${x.n}</div></span>
+      ${link(x.m)}<button onclick='adminUndo(${x.uid}, ${esc(JSON.stringify(String(x.g)))})'>Отменить</button></div>`).join('')}</div>
+    <p class="note">Отмена снимает все дуэли этого отчёта (и копии у соперника) и пишет об этом в тему отчётов. Отчёты админов отменяет только владелец.</p>`;
+  el.innerHTML = html;
+}
+async function adminUndo(uid, g) {
+  if (!confirm('Отменить этот отчёт? Все его дуэли будут сняты.')) return;
+  try { const res = await adminCall({ act: 'undo', uid, g }); alert(res.ok ? res.text : 'Не получилось: ' + res.error); } catch (e) { alert('Не получилось: ' + e.message); }
+  await loadAdmin(); await loadDuels();
 }
 async function duelAct(act, to) {
   if (!TG || !TG.initData) {
@@ -610,6 +669,8 @@ function openPilot(numStr) {
         `<div class="${have[k] ? '' : 'off'}" title="${esc(v[2])}"><i>${v[0]}</i>${esc(v[1])}<small>${have[k] ? new Date(have[k]).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : esc(v[2])}</small></div>`).join('')}</div>`;
     })() : ''}
     ${h2hBlock(p)}
+    ${mapStats(st)}
+    ${recentDuels(st)}
     ${st && st.rivals && st.rivals.length ? `<div class="label">Чаще всего катает с</div><div class="card">${st.rivals.map(r => `
       <div class="rivrow" onclick='openByName(${nameAttr(r[0])})'><span class="n">${esc(r[0])}</span><span class="note" style="margin:0">${r[1]} дуэл.</span>
         <span class="c">${r[2]} : ${r[3]}</span></div>`).join('')}</div>` : ''}
@@ -874,6 +935,7 @@ function show(name) {
 
 show('pilots');
 loadAll();
+loadAdmin();
 </script>
 </body>
 </html>
