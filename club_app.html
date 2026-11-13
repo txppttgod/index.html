@@ -132,6 +132,14 @@ h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;lett
 .tm-r b{font-family:var(--race);font-weight:400}
 .tm-n{font-size:11px;color:var(--muted);padding:0 8px 6px}
 .sheet a:not(.btn){color:#ffb3a3}
+/* ачивки и Эло */
+.ach{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.ach div{background:var(--card2);border-radius:12px;padding:8px;text-align:center;font-size:12px;line-height:1.3}
+.ach div i{display:block;font-style:normal;font-size:22px;margin-bottom:2px}
+.ach div.off{opacity:.3;filter:grayscale(1)}
+.ach div small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.up{color:var(--ok)}.down{color:var(--accent)}
+.lfg{font-size:13px;color:var(--ok);margin-top:8px;text-align:center}
 /* аватар: фото машины или гоночный номер */
 .av{position:relative;width:64px;height:46px;border-radius:10px;background:var(--card2);overflow:hidden;flex:none;
   display:flex;align-items:center;justify-content:center;font-family:var(--race);font-size:17px;color:var(--text)}
@@ -230,7 +238,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-13a';
+const APP_VERSION = '2026-11-14a';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -364,8 +372,13 @@ function renderPilots() {
         <div class="pname">${esc(me.name)}</div><div class="prole">${esc(me.role)}</div></div></div>
       <div class="me-big">${ready() ? d.week : '…'} <small>из ${norm} дуэлей за неделю</small></div>
       ${progress(ready() ? d.week : 0, norm)}
-      <div class="note" style="margin:8px 0 0">${!ready() ? '' : left ? 'Осталось ' + left + '. Скрины «История заездов» — в тему отчётов.' : 'Норма выполнена ✅'}</div>
+      <div class="note" style="margin:8px 0 0">${!ready() ? '' : left ? 'Осталось ' + left + paceText(left) + '. Скрины «История заездов» — в тему отчётов.' : 'Норма выполнена ✅'}</div>
     </div>`;
+    if (ready()) {
+      const lfg = (duelData.lfg || []).filter(n => n.toLowerCase() !== me.name.toLowerCase());
+      html += `<a class="btn ghost" href="#" onclick="duelAct('lfg');return false">🔎 Ищу дуэль — найти соперника</a>
+        ${lfg.length ? `<div class="lfg">Сейчас ищут дуэль: ${lfg.map(esc).join(', ')} — жми кнопку, и бот сведёт вас</div>` : ''}`;
+    }
     if (!profOf(me).photo) html += `<a class="btn ghost" href="${BOT_PROFILE_LINK}">🏎 Поставить фото своей машины в ливрее клуба</a>`;
   }
 
@@ -381,7 +394,7 @@ function renderPilots() {
     }
   }
 
-  if (ready()) html += `<a class="btn ghost" href="#" onclick="show('ratings');return false">🏆 Награды недели, карты и соперничества</a>`;
+  if (ready()) html += `<a class="btn ghost" href="#" onclick="show('ratings');return false">🏆 Награды, рейтинг Эло, карты и соперничества</a>`;
   if (designers().length) {
     const n = designers().reduce((s, x) => s + x.items.length, 0);
     html += `<a class="btn ghost" href="#" onclick="openWorkshop('');return false">🎨 Мастерская ливрей${n ? ' · ' + n : ''}</a>`;
@@ -412,6 +425,31 @@ function renderPilots() {
 
 function setSort(s) { pilotSort = s; renderPilots(); }
 
+// Темп нормы: сколько дуэлей в день до воскресенья (неделя по Москве)
+function paceText(left) {
+  const dow = new Date(Date.now() + 3 * 3600e3).getUTCDay(), days = dow === 0 ? 1 : 8 - dow;
+  if (days === 1) return ' — все сегодня';
+  const per = Math.ceil(left / days);
+  return ` — это по ${per} в день до воскресенья`;
+}
+const eloRows = () => (ready() && duelData.elo) || [];
+const eloOf = p => { const i = eloRows().findIndex(r => r[0].toLowerCase() === p.name.toLowerCase()); return i < 0 ? null : { place: i + 1, r: eloRows()[i] }; };
+const achOf = p => (ready() && duelData.ach && duelData.ach[p.name.toLowerCase()]) || [];
+const delta = d => d > 0 ? `<span class="up">▲${d}</span>` : d < 0 ? `<span class="down">▼${-d}</span>` : '';
+async function duelAct(act, to) {
+  if (!TG || !TG.initData) {
+    if (act === 'lfg') openTg(BOT_LINK + '?start=lfg');
+    else alert('Вызвать на дуэль можно, когда приложение открыто в Телеграме (или командой /call @ник в чате клуба).');
+    return;
+  }
+  try {
+    const r = await fetch(BOT_URL + '/api/duel', { method: 'POST', body: JSON.stringify({ init: TG.initData, act, to }) });
+    const res = await r.json();
+    alert(res.ok ? res.text : 'Не получилось: ' + res.error);
+  } catch (e) { alert('Не получилось: ' + e.message); }
+  await loadDuels();
+}
+
 // Серия: сколько недель подряд выполнена норма (значок — с двух недель)
 const streakBadge = d => d.streak >= 2 ? `<span class="streak">🔥 ${d.streak} нед.</span>` : '';
 // Пилот по нику в игре (награды и соперничества бот присылает с ником из таблицы)
@@ -439,7 +477,7 @@ function awardCards(aw, gold) {
 
 function renderRatings() {
   const el = document.getElementById('ratings');
-  const chips = `<h2>Рейтинги</h2><div class="chips">${[['awards', 'Награды'], ['maps', 'Карты'], ['rivals', 'Соперничества']]
+  const chips = `<h2>Рейтинги</h2><div class="chips">${[['awards', 'Награды'], ['elo', 'Эло'], ['maps', 'Карты'], ['rivals', 'Соперничества']]
     .map(([k, t]) => `<span class="chip ${ratingTab === k ? 'on' : ''}" onclick="setRating('${k}')">${t}</span>`).join('')}</div>`;
   if (!ready()) {
     el.innerHTML = chips + `<p class="note">${!duelData ? 'Загружаю данные от бота… Если бот спал, это займёт до минуты.' : 'Не удалось получить данные от бота. Нажми «обновить» через минуту.'}</p>`;
@@ -453,6 +491,13 @@ function renderRatings() {
     const prevCards = awardCards(prev, true);
     if (prevCards) html += `<div class="label">Победители прошлой недели · ${esc(duelData.prev_week)}</div><div class="aw">${prevCards}</div>`;
     html += `<p class="note">Считаются только дуэли, которые идут в норму. «Снайпер» — от 10 дуэлей за неделю. «Дуэль недели» — самая близкая по счёту, где оба проехали больше 100 баллов.</p>`;
+  } else if (ratingTab === 'elo') {
+    const rows = eloRows();
+    html += rows.length ? `<div class="card">${rows.map((r, i) => `
+      <div class="mrow" onclick='openByName(${nameAttr(r[0])})' style="cursor:pointer${r[2] < 10 ? ';opacity:.55' : ''}"><span class="mi">${i + 1}</span>
+        <div class="mn">${esc(r[0])}<div class="prole">${r[2]} дуэл.${r[3] ? ' · за неделю ' + delta(r[3]) : ''}</div></div><span class="mc">${r[1]}</span></div>`).join('')}</div>
+      <p class="note">Рейтинг силы: все начинают с 1000. За победу над сильным соперником очков больше, над слабым — меньше; за поражение очки уходят сопернику. Считаются дуэли в норму за последние 10 недель. Бледные — меньше 10 дуэлей, рейтинг ещё неточный.</p>`
+      : '<p class="note">Рейтинг появится, когда пилоты клуба сыграют дуэли между собой.</p>';
   } else if (ratingTab === 'maps') {
     const tr = duelData.tracks || {}, kings = tr.kings || {}, cls = ['p2', 'p1', 'p3'], place = ['2', '1', '3'];
     // Логотип карты ставит владелец через бота (/maplogo); строка рейтинга: [название, дуэлей, версия логотипа, ключ]
@@ -492,7 +537,7 @@ function openPilot(numStr) {
   const des = designers(), me = des.find(x => x.tg && x.tg === tgKey(p.tg));
   const lvMine = me ? me.items : [];
   const lvFor = des.flatMap(x => x.items.filter(it => it.for && it.for.toLowerCase() === p.name.toLowerCase()).map(it => ({ ...it, by: x.name })));
-  const mine = isMe(p.tg);
+  const mine = isMe(p.tg), elo = eloOf(p);
   document.getElementById('sheetBody').innerHTML = `<div class="grab"></div>
     ${avatar(p, 'big')}
     <h3>${esc(p.name)}</h3>
@@ -507,7 +552,14 @@ function openPilot(numStr) {
       <div class="stat"><span>Лучший счёт</span><b>${short(st.best)}</b></div>
       <div class="stat"><span>Любимая карта</span><b style="font-size:15px">${esc(st.map || '—')}</b></div>
       <div class="stat"><span>Серия нормы</span><b>${d.streak ? '🔥 ' + d.streak : '0'}</b><span>недель подряд</span></div>` : ''}
+      ${elo ? `<div class="stat" style="grid-column:1/-1"><span>Рейтинг Эло</span><b>${elo.r[1]}</b><span>${elo.place} место из ${eloRows().length}${elo.r[3] ? ' · за неделю ' + delta(elo.r[3]) : ''}</span></div>` : ''}
     </div>
+    ${!mine && p.tg && ready() ? `<a class="btn" href="#" onclick="duelAct('call', '${esc(tgKey(p.tg))}');return false">⚔️ Вызвать на дуэль</a>` : ''}
+    ${ready() && duelData.ach_info ? (() => {
+      const have = Object.fromEntries(achOf(p)), info = Object.entries(duelData.ach_info);
+      return `<div class="label">Ачивки · ${Object.keys(have).length} из ${info.length}</div><div class="ach">${info.map(([k, v]) =>
+        `<div class="${have[k] ? '' : 'off'}" title="${esc(v[2])}"><i>${v[0]}</i>${esc(v[1])}<small>${have[k] ? new Date(have[k]).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : esc(v[2])}</small></div>`).join('')}</div>`;
+    })() : ''}
     ${st && st.rivals && st.rivals.length ? `<div class="label">Чаще всего катает с</div><div class="card">${st.rivals.map(r => `
       <div class="rivrow" onclick='openByName(${nameAttr(r[0])})'><span class="n">${esc(r[0])}</span><span class="note" style="margin:0">${r[1]} дуэл.</span>
         <span class="c">${r[2]} : ${r[3]}</span></div>`).join('')}</div>` : ''}
