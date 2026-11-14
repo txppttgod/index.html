@@ -155,6 +155,10 @@ h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;lett
 .mapst .p{width:64px;text-align:right;color:var(--muted);flex:none}
 .adm .mrow{font-size:13px}
 .adm .bad{color:var(--accent)}
+.gcard{margin-top:10px}
+.gcard h4{margin:0 0 6px;font-size:16px}
+.gcard p{margin:0;font-size:14px;line-height:1.5;color:var(--text)}
+.gcard code{background:var(--card2);border-radius:6px;padding:1px 5px;font-size:13px}
 .adm button{background:none;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer}
 /* аватар: фото машины или гоночный номер */
 .av{position:relative;width:64px;height:46px;border-radius:10px;background:var(--card2);overflow:hidden;flex:none;
@@ -214,7 +218,7 @@ h2{font-family:var(--race);font-weight:400;font-size:20px;margin:6px 0 12px;lett
 /* нижнее меню */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;background:rgba(15,15,18,.96);border-top:1px solid var(--line);
   padding-bottom:env(safe-area-inset-bottom);backdrop-filter:blur(8px)}
-nav button{flex:1;padding:8px 4px 10px;background:none;border:0;color:var(--muted);font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button{flex:1;min-width:0;padding:8px 2px 10px;background:none;border:0;color:var(--muted);font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
 nav button svg{width:22px;height:22px}
 nav button.active{color:var(--accent)}
 </style>
@@ -228,11 +232,13 @@ nav button.active{color:var(--accent)}
 <div class="stripe"></div>
 
 <main>
+  <section id="home"></section>
   <section id="pilots"></section>
   <section id="ratings"></section>
   <section id="workshop"></section>
   <section id="uts"></section>
   <section id="admin"></section>
+  <section id="guide"></section>
   <section id="schedule"></section>
   <section id="rules"></section>
   <section id="summary"></section>
@@ -241,6 +247,7 @@ nav button.active{color:var(--accent)}
 <div class="sheet-bg" id="sheet" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheetBody"></div></div>
 
 <nav>
+  <button data-t="home" onclick="show('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Главная</button>
   <button data-t="pilots" onclick="show('pilots')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 14v7M10 12l-6.7-2M14 12l6.7-2"/></svg>Пилоты</button>
   <button data-t="ratings" onclick="show('ratings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Рейтинги</button>
   <button data-t="schedule" onclick="show('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg>Неделя</button>
@@ -255,7 +262,7 @@ if (TG) { TG.ready(); TG.expand(); try { TG.setHeaderColor('#0f0f12'); TG.setBac
 
 // Телеграм на телефоне держит старую копию страницы. Сверяем версию с сайтом и, если вышла новая,
 // перезагружаемся по другому адресу (?v=…), чтобы взять свежую. Хвост адреса с данными Телеграма сохраняем.
-const APP_VERSION = '2026-11-14d';
+const APP_VERSION = '2026-11-14f';
 fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' })
   .then(r => r.text())
   .then(t => {
@@ -413,6 +420,7 @@ function renderPilots() {
     }
   }
 
+  html += `<a class="btn ghost" href="#" onclick="openGuide();return false">❓ Что умеет бот</a>`;
   if (adminData) html += `<a class="btn ghost" href="#" onclick="renderAdmin();show('admin');return false">🛡 Админ-панель</a>`;
   if (ready()) html += `<a class="btn ghost" href="#" onclick="show('ratings');return false">🏆 Рейтинг Эло, награды, карты и соперничества</a>`;
   if (ready() && duelData.teams) {
@@ -428,11 +436,15 @@ function renderPilots() {
     html += `<a class="btn ghost" href="#" onclick="openUts();return false">🏁 Турниры${live ? ' · идёт запись или игра: ' + live : ''}</a>`;
   }
 
-  // Список пилотов
+  html += `<a class="btn ghost" href="#" onclick="show('pilots');return false">👥 Все пилоты · ${pilots.length}</a>`;
+  document.getElementById('home').innerHTML = html;
+
+  // Список пилотов — отдельная страница
+  html = '';
   const list = [...pilots];
   if (pilotSort === 'duels') list.sort((a, b) => duelOf(b).week - duelOf(a).week || duelOf(b).prev - duelOf(a).prev || num(a.num) - num(b.num));
   else list.sort((a, b) => num(a.num) - num(b.num));
-  html += `<div class="label">Пилоты · ${pilots.length}</div>
+  html += `<h2>Пилоты · ${pilots.length}</h2>
     ${waiting ? `<p class="note">${waiting}</p>` : `<p class="note">Неделя ${esc(duelData.week)}, норма ${norm} дуэлей. Нажми на пилота, чтобы открыть профиль.</p>`}
     <div class="chips"><span class="chip ${pilotSort === 'duels' ? 'on' : ''}" onclick="setSort('duels')">По дуэлям</span>
       <span class="chip ${pilotSort === 'num' ? 'on' : ''}" onclick="setSort('num')">По номеру</span></div>
@@ -496,6 +508,43 @@ function h2hBlock(p) {
     ${v[3].map(x => `<div class="h2h"><span>${new Date(x[0]).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · ${res[x[1]] || x[1]}</span><span>${esc(x[2])}${x[3] ? ' · ' + esc(x[3]) : ''}${shotLink(x[4])}</span></div>`).join('')}
     <p class="note" style="margin:6px 0 0">${v[0]} дуэл. за 10 недель, показаны последние ${v[3].length}</p></div>`;
 }
+// ---------- «Что умеет бот»: короткий гид по всем фишкам. Новичку открывается сам при первом запуске ----------
+const GUIDE = [
+  ['📸', 'Как сдавать дуэли', 'Кидай скрин «История заездов» в тему отчётов клуба. Бот сам прочитает дату, соперника, счёт и трассу. Дуэль с пилотом клуба засчитывается вам обоим — второму сдавать не нужно. Под каждым скрином бот отвечает, что засчитал.'],
+  ['🏁', 'Норма', 'Неделя — с понедельника по воскресенье. В норму идут дуэли с пилотами из таблицы клуба, если у тебя больше 100.1 балла. Свои цифры — <code>/norm</code> или карточка «ТЫ» на главной. Бот подскажет, сколько дуэлей в день осталось.'],
+  ['🔎', 'Ищу дуэль', 'Напиши в чате <code>ищу дуэль</code> или нажми кнопку на главной — бот объявит, что ты ищешь соперника, и сведёт пару. Если кто-то уже ищет — пара сразу.'],
+  ['⚔️', 'Вызов на дуэль', 'Кнопка «Вызвать на дуэль» в профиле пилота или <code>/call @ник</code>. Бот покажет шансы по Эло, соперник ответит «Принять» или «Не сейчас».'],
+  ['🏆', 'Мини-УТС', 'Турниры без судей: <code>/uts</code> в личке бота или «Главная» → «🏁 Турниры». Запись — кнопкой «Участвую», сетку и пары бот ведёт сам, победителя определяет по баллам со скрина. В первые 15 минут можно угадать победителя — очко в «Пророк месяца».'],
+  ['📈', 'Рейтинг Эло', 'Все начинают с 1000. За победу над сильным соперником очков больше. Победа аутсайдера — «🔥 Апсет!» в чате. График рейтинга и личный счёт «Ты против …» — в профиле пилота.'],
+  ['🏅', 'Ачивки и рекорды', 'Значки за серии побед, баллы, нормы, турниры — в профиле. У каждой карты есть рекорд, новый рекорд бот объявляет в чате.'],
+  ['🔴🔵', 'Командная неделя', 'Каждый понедельник бот делит активных пилотов на две команды поровну по Эло. Дуэль в норму — 1 очко команде, победа — ещё 1. Счёт — <code>/teams</code> и «Рейтинги» → «Команды».'],
+  ['🎯', 'Личная цель', 'Хочешь больше нормы? <code>/goal 30</code> или кнопка на главной. Прогресс — в приложении, итог недели — в личке по понедельникам.'],
+  ['🏎', 'Профиль и ливреи', 'Фото своей машины в ливрее клуба — <code>/myprofile</code> в личке бота. В «Мастерской ливрей» — работы ливрейщиков клуба, лайки и заказ ливреи.'],
+  ['💬', 'Личка бота', 'Чтобы бот мог писать тебе (напоминания, вызовы, итоги цели), открой его и нажми Start. Все команды — <code>/help</code>, это знакомство ещё раз — <code>/guide</code>.'],
+];
+function renderGuide() {
+  document.getElementById('guide').innerHTML = `<a class="back" href="#" onclick="show('home');return false">← Главная</a><h2>Что умеет бот</h2>
+    <p class="note">Коротко про всё, что есть в клубе. Вернуться сюда — кнопка «❓ Что умеет бот» на главной.</p>
+    ${GUIDE.map(([i, t, d]) => `<div class="card gcard"><h4>${i} ${t}</h4><p>${d}</p></div>`).join('')}
+    <a class="btn" href="#" onclick="show('home');return false">Понятно, на главную</a>`;
+}
+function openGuide() { renderGuide(); show('guide'); }
+function guideFirstTime() {
+  let seen = false;
+  try { seen = localStorage.getItem('khr_guide_seen') === '1'; localStorage.setItem('khr_guide_seen', '1'); } catch (e) { seen = true; }
+  if (!seen) openGuide();
+}
+async function adminExport(back) {
+  try {
+    const res = await adminCall({ act: 'export', uid: back });
+    if (!res.ok) { alert('Не получилось: ' + res.error); return; }
+    if (!res.n) { alert('За эту неделю дуэлей нет.'); return; }
+    const url = BOT_URL + res.url;
+    if (TG && TG.downloadFile && TG.isVersionAtLeast && TG.isVersionAtLeast('8.0')) TG.downloadFile({ url, file_name: res.name });
+    else if (TG && TG.openLink) TG.openLink(url);
+    else window.open(url, '_blank');
+  } catch (e) { alert('Не получилось: ' + e.message); }
+}
 // ---------- Админ-панель: видна только администраторам клуба (бот проверяет по подписи Телеграма) ----------
 let adminData = null;
 async function adminCall(body) {
@@ -512,8 +561,10 @@ function renderAdmin() {
   if (!adminData) { el.innerHTML = ''; return; }
   const a = adminData, base = a.shot_base;
   const link = m => m && base ? `<a class="shot" href="#" onclick="openTg('${base}${m}');return false">📸</a>` : '';
-  let html = `<a class="back" href="#" onclick="show('pilots');return false">← Пилоты</a><h2>Админ-панель</h2>
+  let html = `<a class="back" href="#" onclick="show('home');return false">← Главная</a><h2>Админ-панель</h2>
     <a class="btn ghost" href="#" onclick="loadAdmin();return false">🔄 Обновить</a>
+    <a class="btn ghost" href="#" onclick="adminExport(0);return false">⬇️ Скачать дуэли этой недели (таблица)</a>
+    <a class="btn ghost" href="#" onclick="adminExport(1);return false">⬇️ Скачать дуэли прошлой недели</a>
     <div class="label">Норма этой недели · ${a.norm}</div><div class="card adm">${a.people.map(x => `<div class="mrow">
       <span class="mn">${esc(x.name)}${x.tg ? ' <span class="note" style="margin:0">@' + esc(x.tg) + '</span>' : ''}<div class="prole">прошлая: ${x.prev} · последняя дуэль: ${x.last ? new Date(x.last).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '—'}</div></span>
       <span class="mc ${x.week < a.norm ? 'bad' : ''}">${x.week}</span></div>`).join('')}</div>`;
@@ -712,7 +763,7 @@ function renderWorkshop() {
   const el = document.getElementById('workshop');
   const des = designers();
   const total = des.reduce((n, x) => n + x.items.length, 0);
-  let html = `<a class="back" href="#" onclick="show('pilots');return false">← Пилоты</a><h2>Мастерская ливрей</h2>
+  let html = `<a class="back" href="#" onclick="show('home');return false">← Главная</a><h2>Мастерская ливрей</h2>
     <p class="note">Работы ливрейщиков клуба: ${plural(total, 'ливрея', 'ливреи', 'ливрей')}. Нажми на ливрею, чтобы открыть её целиком и поставить 🔥.</p>`;
   if (!ready()) { el.innerHTML = html + '<p class="note">Загружаю данные от бота…</p>'; return; }
   if (!des.length) { el.innerHTML = html + '<p class="note">Пока нет ни одного ливрейщика. Их назначает владелец клуба командой /designer @ник.</p>'; return; }
@@ -823,7 +874,7 @@ function utsCard(t) {
 function renderUts() {
   const el = document.getElementById('uts');
   const u = utsData();
-  let html = `<a class="back" href="#" onclick="show('pilots');return false">← Пилоты</a><h2>Турниры</h2>
+  let html = `<a class="back" href="#" onclick="show('home');return false">← Главная</a><h2>Турниры</h2>
     <p class="note">Мини-УТС без судей: создаёшь турнир, люди жмут «Участвую», бот сам строит сетку, зовёт пары и определяет победителя по баллам со скрина. Дуэли идут и в норму.</p>
     <a class="btn" href="#" onclick="openTg('${BOT_LINK}?start=uts');return false">➕ Создать турнир</a>`;
   if (!ready()) { el.innerHTML = html + '<p class="note">Загружаю данные от бота…</p>'; return; }
@@ -933,9 +984,10 @@ function show(name) {
   window.scrollTo(0, 0);
 }
 
-show('pilots');
+show('home');
 loadAll();
 loadAdmin();
+guideFirstTime();
 </script>
 </body>
 </html>
